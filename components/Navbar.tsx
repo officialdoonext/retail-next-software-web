@@ -65,34 +65,34 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+      <header className="sticky top-0 z-50 bg-white border-b border-gray-200/70 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
         <div className="max-w-[1600px] mx-auto px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
           
-          {/* Brand Logo from public/logo.png */}
+          {/* Brand Logo */}
           <Link href="/products" className="flex items-center shrink-0 select-none group">
             <Image
               src="/logo.png"
               alt="RetailNext Logo"
-              width={150}
+              width={145}
               height={40}
               priority
               className="h-9 w-auto object-contain"
             />
           </Link>
 
-          {/* Navigation Tabs with Spacing and Scroll Controls */}
-          <div className="flex items-center gap-2 flex-1 max-w-4xl justify-center overflow-hidden px-2">
+          {/* Navigation Tabs with comfortable spacing and size */}
+          <div className="flex items-center gap-1.5 flex-1 max-w-4xl justify-center overflow-hidden px-2">
             <button
               onClick={() => handleScroll("left")}
               aria-label="Scroll left"
-              className="hidden sm:flex p-1.5 rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors shrink-0"
+              className="hidden sm:flex w-7.5 h-7.5 items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors shrink-0 cursor-pointer shadow-2xs"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
 
             <div
               ref={scrollContainerRef}
-              className="flex items-center gap-3 sm:gap-4 md:gap-5 overflow-x-auto no-scrollbar scroll-smooth py-1 px-2"
+              className="flex items-center gap-2 sm:gap-3 md:gap-4 overflow-x-auto no-scrollbar scroll-smooth py-1 px-1.5"
             >
               {NAV_ITEMS.map((item) => {
                 const active = isCurrentActive(item.href);
@@ -102,10 +102,10 @@ export default function Navbar() {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`relative flex flex-col items-center justify-center px-2.5 py-1.5 rounded-[8px] text-xs font-medium transition-all group shrink-0 ${
+                    className={`relative flex flex-col items-center justify-center px-3 py-1.5 rounded-[8px] text-[12.5px] font-medium transition-all group shrink-0 ${
                       active
                         ? "text-[#6320EE]"
-                        : "text-gray-500 hover:text-gray-900"
+                        : "text-gray-600 hover:text-gray-900"
                     }`}
                   >
                     <Icon
@@ -115,7 +115,7 @@ export default function Navbar() {
                     />
                     <span className="whitespace-nowrap">{item.name}</span>
                     {active && (
-                      <span className="absolute -bottom-2 left-1 right-1 h-0.5 bg-[#6320EE] rounded-[8px]" />
+                      <span className="absolute -bottom-2 left-1.5 right-1.5 h-0.5 bg-[#6320EE] rounded-[8px]" />
                     )}
                   </Link>
                 );
@@ -125,7 +125,7 @@ export default function Navbar() {
             <button
               onClick={() => handleScroll("right")}
               aria-label="Scroll right"
-              className="hidden sm:flex p-1.5 rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors shrink-0"
+              className="hidden sm:flex w-7.5 h-7.5 items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors shrink-0 cursor-pointer shadow-2xs"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -137,16 +137,16 @@ export default function Navbar() {
             {/* Connect Printer Button */}
             <button
               onClick={() => setIsPrinterModalOpen(true)}
-              className={`hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] text-xs font-medium border transition-all cursor-pointer ${
+              className={`hidden sm:inline-flex items-center gap-1.5 h-8.5 px-3 rounded-[8px] text-xs font-medium border shadow-2xs transition-all cursor-pointer ${
                 isPrinterConnected
                   ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                  : "bg-purple-50/70 border-purple-200 text-[#6320EE] hover:bg-purple-100/80"
+                  : "bg-white border-purple-200 text-[#6320EE] hover:bg-purple-50/70 hover:border-purple-300"
               }`}
             >
               {isPrinterConnected ? (
                 <>
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Printer Connected</span>
+                  <span>Printer Online</span>
                 </>
               ) : (
                 <>
@@ -159,7 +159,7 @@ export default function Navbar() {
             {/* User Profile */}
             <div className="flex items-center gap-2.5">
               <div className="relative">
-                <div className="w-9 h-9 rounded-[8px] bg-gradient-to-tr from-purple-500 to-indigo-600 p-[1.5px] shadow-sm">
+                <div className="w-9 h-9 rounded-[8px] bg-gradient-to-tr from-purple-500 to-indigo-600 p-[1.5px] shadow-2xs">
                   <div className="w-full h-full rounded-[8px] bg-amber-100 flex items-center justify-center overflow-hidden">
                     <img
                       src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
@@ -176,8 +176,8 @@ export default function Navbar() {
               </div>
 
               <div className="hidden md:flex flex-col text-left">
-                <span className="text-sm font-medium text-gray-900 leading-tight">Admin User</span>
-                <span className="text-xs text-gray-400 font-normal">Administrator</span>
+                <span className="text-xs font-medium text-gray-900 leading-tight">Admin User</span>
+                <span className="text-[10.5px] text-gray-400 font-normal">Administrator</span>
               </div>
             </div>
 
@@ -192,21 +192,21 @@ export default function Navbar() {
           <div className="bg-white rounded-[8px] max-w-sm w-full p-5 shadow-2xl animate-in fade-in zoom-in duration-150 border border-gray-100">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-[8px] bg-purple-50 flex items-center justify-center text-[#6320EE]">
-                  <Printer className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-[8px] bg-purple-50 flex items-center justify-center text-[#6320EE]">
+                  <Printer className="w-3.5 h-3.5" />
                 </div>
                 <h3 className="font-medium text-gray-900 text-sm">Thermal & Receipt Printer</h3>
               </div>
               <button
                 onClick={() => setIsPrinterModalOpen(false)}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-[8px]"
+                className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-[8px] cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="py-4 space-y-3 text-xs">
-              <p className="text-gray-500">
+              <p className="text-gray-500 leading-relaxed">
                 Connect your POS thermal printer via USB, Bluetooth, or Network for automatic invoice & receipt printing.
               </p>
 
@@ -227,7 +227,7 @@ export default function Navbar() {
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
               <button
                 onClick={() => setIsPrinterModalOpen(false)}
-                className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-[8px]"
+                className="h-8 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-[8px] cursor-pointer"
               >
                 Cancel
               </button>
@@ -236,7 +236,7 @@ export default function Navbar() {
                   setIsPrinterConnected(!isPrinterConnected);
                   setIsPrinterModalOpen(false);
                 }}
-                className="px-3.5 py-1.5 bg-[#6320EE] hover:bg-[#5219cd] text-white text-xs font-medium rounded-[8px] shadow-sm"
+                className="h-8 px-3.5 bg-[#6320EE] hover:bg-[#5219cd] text-white text-xs font-medium rounded-[8px] shadow-2xs cursor-pointer"
               >
                 {isPrinterConnected ? "Disconnect" : "Connect Device"}
               </button>
