@@ -52,7 +52,7 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sortField, setSortField] = useState<keyof Product>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [pageSize, setPageSize] = useState<number>(10);
+  const [pageSize, setPageSize] = useState<number>(45);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -220,6 +220,18 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
       return 0;
     });
   }, [products, activeTab, categoryFilter, searchQuery, sortField, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [filteredProducts, currentPage, pageSize]);
+
+  // Reset to page 1 on filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeTab, categoryFilter, pageSize]);
 
   const handleSort = (field: keyof Product) => {
     if (sortField === field) {
@@ -482,7 +494,7 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
           </div>
 
           <span className="text-[11px] text-gray-500 font-normal">
-            Showing 1 to {filteredProducts.length} of {products.length} products
+            Showing {filteredProducts.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredProducts.length)} of {filteredProducts.length} products
           </span>
 
           {/* Page size dropdown */}
@@ -492,10 +504,10 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
               onChange={(e) => setPageSize(Number(e.target.value))}
               className="appearance-none bg-white border border-gray-200 rounded-[8px] h-7.5 pl-2.5 pr-6 text-xs font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:border-[#6320EE] cursor-pointer shadow-2xs"
             >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
+              <option value={45}>45 per page</option>
+              <option value={90}>90 per page</option>
+              <option value={150}>150 per page</option>
+              <option value={filteredProducts.length || 1000}>All items</option>
             </select>
             <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-[10px]">
               ▾
@@ -656,7 +668,7 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
                 </tr>
               )}
 
-              {filteredProducts.map((item) => {
+              {paginatedProducts.map((item) => {
                 const isSelected = selectedIds.includes(item.id);
                 const isOutOfStock = item.stock <= 0 || item.status === "Out of Stock";
 
@@ -790,7 +802,7 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
       ) : (
         /* Grid Mode */
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {filteredProducts.map((item) => {
+          {paginatedProducts.map((item) => {
             const isOutOfStock = item.stock <= 0 || item.status === "Out of Stock";
             return (
               <div
@@ -870,7 +882,7 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
       {/* Pagination Footer */}
       <div className="p-3 sm:p-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <span className="text-xs text-gray-500 font-normal">
-          Showing 1 to {filteredProducts.length} of {products.length} products
+          Showing {filteredProducts.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredProducts.length)} of {filteredProducts.length} products (Page {currentPage} of {totalPages})
         </span>
 
         <div className="flex items-center gap-1 self-center sm:self-auto select-none">
@@ -878,33 +890,56 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
             onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
             className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            title="First Page"
           >
-            <ChevronsLeft className="w-3 h-3" />
+            <ChevronsLeft className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
             className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            title="Previous Page"
           >
-            <ChevronLeft className="w-3 h-3" />
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Dynamic Page Numbers */}
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+            .map((page, idx, arr) => {
+              const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
+              return (
+                <React.Fragment key={page}>
+                  {showEllipsis && <span className="px-1 text-gray-400 text-xs">...</span>}
+                  <button
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-7 h-7 rounded-[8px] text-xs font-medium flex items-center justify-center cursor-pointer transition-colors ${
+                      currentPage === page
+                        ? "bg-[#6320EE] text-white shadow-2xs"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+
+          <button
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage >= totalPages}
+            className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            title="Next Page"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => setCurrentPage(1)}
-            className="w-7 h-7 rounded-[8px] text-xs font-medium flex items-center justify-center bg-[#6320EE] text-white shadow-2xs"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage >= totalPages}
+            className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            title="Last Page"
           >
-            1
-          </button>
-          <button
-            onClick={() => setCurrentPage(2)}
-            className="w-7 h-7 rounded-[8px] text-xs font-medium flex items-center justify-center text-gray-600 hover:bg-gray-100"
-          >
-            2
-          </button>
-          <button
-            onClick={() => setCurrentPage(2)}
-            className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 cursor-pointer"
-          >
-            <ChevronRight className="w-3 h-3" />
+            <ChevronsRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

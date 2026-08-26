@@ -15,7 +15,11 @@ import {
   Package,
   Layers,
   Tag,
-  Loader2
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Variation, INITIAL_VARIATIONS } from "./VariationData";
@@ -28,6 +32,8 @@ export default function VariationsView() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortField, setSortField] = useState<keyof Variation>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [pageSize, setPageSize] = useState<number>(45);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState(false);
 
   // Modal States
@@ -102,6 +108,17 @@ export default function VariationsView() {
         return 0;
       });
   }, [variations, activeTab, searchQuery, sortField, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredVariations.length / pageSize));
+
+  const paginatedVariations = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredVariations.slice(start, start + pageSize);
+  }, [filteredVariations, currentPage, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeTab, pageSize]);
 
   const handleSort = (field: keyof Variation) => {
     if (sortField === field) {
@@ -437,116 +454,201 @@ export default function VariationsView() {
             </thead>
 
             <tbody className="divide-y divide-gray-100 text-xs">
-              {filteredVariations.map((item) => {
-                const isSelected = selectedIds.includes(item.id);
+              {filteredVariations.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-gray-400">
+                    No variations found. Click "+ Add Variation" to create one.
+                  </td>
+                </tr>
+              ) : (
+                paginatedVariations.map((item) => {
+                  const isSelected = selectedIds.includes(item.id);
 
-                return (
-                  <tr
-                    key={item.id}
-                    className={`transition-colors hover:bg-gray-50/70 ${
-                      isSelected ? "bg-purple-50/40" : ""
-                    }`}
-                  >
-                    <td className="py-2.5 px-3.5 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleToggleSelect(item.id)}
-                        className="w-3.5 h-3.5 rounded-[4px] border-gray-300 text-[#6320EE] focus:ring-[#6320EE] cursor-pointer"
-                      />
-                    </td>
+                  return (
+                    <tr
+                      key={item.id}
+                      className={`transition-colors hover:bg-gray-50/70 ${
+                        isSelected ? "bg-purple-50/40" : ""
+                      }`}
+                    >
+                      <td className="py-2.5 px-3.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelect(item.id)}
+                          className="w-3.5 h-3.5 rounded-[4px] border-gray-300 text-[#6320EE] focus:ring-[#6320EE] cursor-pointer"
+                        />
+                      </td>
 
-                    {/* Name */}
-                    <td className="py-2.5 px-2.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-[8px] bg-purple-50 flex items-center justify-center text-[#6320EE] text-xs font-medium shadow-2xs">
-                          <Sliders className="w-3.5 h-3.5" />
+                      {/* Name */}
+                      <td className="py-2.5 px-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-[8px] bg-purple-50 flex items-center justify-center text-[#6320EE] text-xs font-medium shadow-2xs">
+                            <Sliders className="w-3.5 h-3.5" />
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-900 hover:text-[#6320EE] cursor-pointer text-xs block">
+                              {item.name}
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-mono">
+                              Type: {item.type}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="font-medium text-gray-900 hover:text-[#6320EE] cursor-pointer text-xs block">
-                            {item.name}
+                      </td>
+
+                      {/* Code */}
+                      <td className="py-2.5 px-2.5 text-xs text-gray-500 font-mono font-normal">
+                        {item.code}
+                      </td>
+
+                      {/* Values / Options */}
+                      <td className="py-2.5 px-2.5">
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {(item.options || []).slice(0, 3).map((opt, i) => (
+                            <span
+                              key={i}
+                              className="px-1.5 py-0.5 rounded-[6px] text-[10px] font-medium bg-purple-50 text-[#6320EE] border border-purple-100"
+                            >
+                              {opt}
+                            </span>
+                          ))}
+                          {(item.options || []).length > 3 && (
+                            <span className="text-[10px] text-gray-400 self-center">
+                              +{(item.options || []).length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Categories */}
+                      <td className="py-2.5 px-2.5 text-xs text-gray-600 font-normal">
+                        <div className="flex items-center gap-1">
+                          <Tag className="w-3 h-3 text-gray-400" />
+                          <span>{(item.applicableCategories || []).join(", ") || "All"}</span>
+                        </div>
+                      </td>
+
+                      {/* Linked Products */}
+                      <td className="py-2.5 px-2.5 font-medium text-right text-xs text-gray-900">
+                        {item.productCount || 0}
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-2.5 px-2.5 text-center">
+                        {item.status === "Active" ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-[8px] text-[10px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-100">
+                            Active
                           </span>
-                          <span className="text-[10px] text-gray-400">{item.description || item.type}</span>
-                        </div>
-                      </div>
-                    </td>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-[8px] text-[10px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                            Inactive
+                          </span>
+                        )}
+                      </td>
 
-                    {/* Code & Type */}
-                    <td className="py-2.5 px-2.5 text-xs text-gray-500 font-normal">
-                      <span className="font-medium text-gray-700">{item.code}</span>
-                      <span className="block text-[10px] text-gray-400">{item.type}</span>
-                    </td>
+                      {/* Created On */}
+                      <td className="py-2.5 px-2.5 text-gray-500 whitespace-nowrap font-normal text-xs">
+                        {item.createdOn || "26 May 2025"}
+                      </td>
 
-                    {/* Options Badges */}
-                    <td className="py-2.5 px-2.5">
-                      <div className="flex flex-wrap gap-1">
-                        {(item.options || []).map((opt, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center px-2 py-0.5 rounded-[8px] bg-purple-50/80 text-[#6320EE] border border-purple-100 text-[11px] font-medium"
+                      {/* Action Buttons */}
+                      <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => setViewingVariation(item)}
+                            className="w-7 h-7 flex items-center justify-center rounded-[8px] text-purple-600 hover:bg-purple-50 transition-colors cursor-pointer"
+                            title="View Details"
                           >
-                            {opt}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-
-                    {/* Applicable Categories */}
-                    <td className="py-2.5 px-2.5 text-xs text-gray-600 font-normal">
-                      <span className="text-[11px] text-gray-500 line-clamp-1 max-w-[160px]">
-                        {(item.applicableCategories || []).join(", ") || "All Categories"}
-                      </span>
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-2.5 px-2.5 text-center">
-                      {item.status === "Active" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-[8px] text-[10px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-100">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-[8px] text-[10px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Created On */}
-                    <td className="py-2.5 px-2.5 text-gray-500 whitespace-nowrap font-normal text-xs">
-                      {item.createdOn || "26 May 2025"}
-                    </td>
-
-                    {/* Action Buttons */}
-                    <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => setViewingVariation(item)}
-                          className="w-7 h-7 flex items-center justify-center rounded-[8px] text-purple-600 hover:bg-purple-50 transition-colors cursor-pointer"
-                          title="View Details"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setEditingVariation(item)}
-                          className="w-7 h-7 flex items-center justify-center rounded-[8px] text-sky-600 hover:bg-sky-50 transition-colors cursor-pointer"
-                          title="Edit Variation"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteVariation(item.id)}
-                          className="w-7 h-7 flex items-center justify-center rounded-[8px] text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
-                          title="Delete Variation"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setEditingVariation(item)}
+                            className="w-7 h-7 flex items-center justify-center rounded-[8px] text-sky-600 hover:bg-sky-50 transition-colors cursor-pointer"
+                            title="Edit Variation"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteVariation(item.id)}
+                            className="w-7 h-7 flex items-center justify-center rounded-[8px] text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Delete Variation"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="p-3 sm:p-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <span className="text-xs text-gray-500 font-normal">
+            Showing {filteredVariations.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredVariations.length)} of {filteredVariations.length} variations (Page {currentPage} of {totalPages})
+          </span>
+
+          <div className="flex items-center gap-1 self-center sm:self-auto select-none">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              title="First Page"
+            >
+              <ChevronsLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              title="Previous Page"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Dynamic Page Numbers */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+              .map((page, idx, arr) => {
+                const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
+                return (
+                  <React.Fragment key={page}>
+                    {showEllipsis && <span className="px-1 text-gray-400 text-xs">...</span>}
+                    <button
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-7 h-7 rounded-[8px] text-xs font-medium flex items-center justify-center cursor-pointer transition-colors ${
+                        currentPage === page
+                          ? "bg-[#6320EE] text-white shadow-2xs"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage >= totalPages}
+              className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              title="Next Page"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage >= totalPages}
+              className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              title="Last Page"
+            >
+              <ChevronsRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 

@@ -23,7 +23,11 @@ import {
   X,
   Sparkles,
   Split,
-  Plus
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { usePrinter, maskPhoneNumber } from "@/context/PrinterContext";
@@ -62,6 +66,8 @@ export default function SalesPage() {
   const [dateFilter, setDateFilter] = useState<"today" | "yesterday" | "week" | "month" | "all">("today");
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentFilter, setPaymentFilter] = useState<string>("all");
+  const [pageSize, setPageSize] = useState<number>(45);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [viewingSale, setViewingSale] = useState<SaleRecord | null>(null);
 
   // Fetch live sales from Firebase Firestore
@@ -136,6 +142,13 @@ export default function SalesPage() {
   const totalInvoices = filteredSales.length;
   const avgBill = totalInvoices > 0 ? totalRevenue / totalInvoices : 0;
   const totalItemsSold = filteredSales.reduce((acc, s) => acc + (Number(s.itemCount) || 1), 0);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSales.length / pageSize));
+  const paginatedSales = filteredSales.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dateFilter, searchQuery, paymentFilter, pageSize]);
 
   const handlePrintReceipt = async (sale: SaleRecord) => {
     await printCustomReceipt({
@@ -393,9 +406,11 @@ export default function SalesPage() {
                   </td>
                 </tr>
               ) : (
-                filteredSales.map((sale, idx) => (
+                paginatedSales.map((sale, idx) => (
                   <tr key={sale.id} className="hover:bg-gray-50/60 transition-colors">
-                    <td className="py-2.5 px-3.5 text-center text-gray-400 font-medium">{idx + 1}</td>
+                    <td className="py-2.5 px-3.5 text-center text-gray-400 font-medium">
+                      {(currentPage - 1) * pageSize + idx + 1}
+                    </td>
                     
                     {/* Invoice No */}
                     <td className="py-2.5 px-3">
@@ -523,6 +538,71 @@ export default function SalesPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="p-3 sm:p-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <span className="text-xs text-gray-500 font-normal">
+            Showing {filteredSales.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredSales.length)} of {filteredSales.length} invoices (Page {currentPage} of {totalPages})
+          </span>
+
+          <div className="flex items-center gap-1 self-center sm:self-auto select-none">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              title="First Page"
+            >
+              <ChevronsLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              title="Previous Page"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Dynamic Page Numbers */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+              .map((page, idx, arr) => {
+                const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
+                return (
+                  <React.Fragment key={page}>
+                    {showEllipsis && <span className="px-1 text-gray-400 text-xs">...</span>}
+                    <button
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-7 h-7 rounded-[8px] text-xs font-medium flex items-center justify-center cursor-pointer transition-colors ${
+                        currentPage === page
+                          ? "bg-[#6320EE] text-white shadow-2xs"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage >= totalPages}
+              className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              title="Next Page"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage >= totalPages}
+              className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              title="Last Page"
+            >
+              <ChevronsRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
       </div>
