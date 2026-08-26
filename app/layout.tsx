@@ -3,6 +3,7 @@ import { Sora } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { AuthProvider } from "@/context/AuthContext";
+import { PrinterProvider } from "@/context/PrinterContext";
 import AuthGuard from "@/components/AuthGuard";
 
 const sora = Sora({
@@ -26,10 +27,12 @@ export default function RootLayout({
     <html lang="en" className={`${sora.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-[#F8F9FD] text-[#1E293B] antialiased">
         <AuthProvider>
-          <AuthGuard>
-            <Navbar />
-            <main className="flex-1 pb-12">{children}</main>
-          </AuthGuard>
+          <PrinterProvider>
+            <AuthGuard>
+              <Navbar />
+              <main className="flex-1 pb-12">{children}</main>
+            </AuthGuard>
+          </PrinterProvider>
         </AuthProvider>
       </body>
     </html>

@@ -8,12 +8,10 @@ import {
   Home,
   Receipt,
   ShoppingCart,
+  ShoppingBag,
   Package,
-  Boxes,
-  Users,
   Store,
   UserCheck,
-  FileText,
   CreditCard,
   Settings,
   ChevronLeft,
@@ -22,9 +20,14 @@ import {
   CheckCircle2,
   X,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Usb,
+  Bluetooth,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { usePrinter } from "@/context/PrinterContext";
 
 interface NavItem {
   name: string;
@@ -34,14 +37,12 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Sales", href: "/sales", icon: Receipt },
-  { name: "Purchases", href: "/purchases", icon: ShoppingCart },
+  { name: "Billing", href: "/billing", icon: Receipt },
+  { name: "Sales", href: "/sales", icon: ShoppingCart },
   { name: "Products", href: "/products", icon: Package },
-  { name: "Inventory", href: "/inventory", icon: Boxes },
-  { name: "Customers", href: "/customers", icon: Users },
+  { name: "Purchases", href: "/purchases", icon: ShoppingBag },
   { name: "Vendors", href: "/vendors", icon: Store },
   { name: "Employees", href: "/employees", icon: UserCheck },
-  { name: "Reports", href: "/reports", icon: FileText },
   { name: "Expenses", href: "/expenses", icon: CreditCard },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
@@ -50,8 +51,18 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, activeBusiness, logout } = useAuth();
+  const {
+    isConnected,
+    connectionType,
+    deviceName,
+    isConnecting,
+    errorMessage,
+    connectUsb,
+    connectBluetooth,
+    disconnectPrinter
+  } = usePrinter();
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [isPrinterConnected, setIsPrinterConnected] = useState(false);
   const [isPrinterModalOpen, setIsPrinterModalOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
@@ -91,39 +102,36 @@ export default function Navbar() {
               <Image
                 src="/logo.png"
                 alt="RetailNext Logo"
-                width={140}
-                height={38}
+                width={132}
+                height={32}
+                className="h-8 w-auto object-contain transition-transform group-hover:scale-[1.02]"
                 priority
-                className="h-8.5 w-auto object-contain"
               />
             </Link>
 
+            {/* Active Outlet Pill */}
             {activeBusiness && (
-              <Link
-                href="/onboarding"
-                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-purple-50 hover:bg-purple-100/80 border border-purple-200 text-[#6320EE] text-[11px] font-medium transition-colors shadow-2xs cursor-pointer"
-                title="Switch Business / Outlet"
-              >
-                <Store className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate max-w-[150px]">{activeBusiness.name}</span>
+              <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 bg-purple-50/70 border border-purple-200/80 rounded-[8px] text-[11px] text-gray-700">
+                <Store className="w-3.5 h-3.5 text-[#6320EE]" />
+                <span className="font-medium truncate max-w-[140px]">{activeBusiness.name}</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              </Link>
+              </div>
             )}
           </div>
 
-          {/* Navigation Tabs */}
-          <div className="flex items-center gap-1.5 flex-1 max-w-4xl justify-center overflow-hidden px-2">
+          {/* Navigation Links with Horizontal Scroll Controls */}
+          <div className="flex-1 flex items-center justify-center relative min-w-0 max-w-4xl mx-2">
             <button
               onClick={() => handleScroll("left")}
-              aria-label="Scroll left"
-              className="hidden sm:flex w-7.5 h-7.5 items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors shrink-0 cursor-pointer shadow-2xs"
+              className="hidden lg:flex w-6 h-6 items-center justify-center rounded-[8px] bg-white border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 shrink-0 shadow-2xs z-10 cursor-pointer mr-1"
+              aria-label="Scroll navigation left"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            <div
+            <nav
               ref={scrollContainerRef}
-              className="flex items-center gap-2 sm:gap-3 md:gap-4 overflow-x-auto no-scrollbar scroll-smooth py-1 px-1.5"
+              className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth py-1 px-1 max-w-full"
             >
               {NAV_ITEMS.map((item) => {
                 const active = isCurrentActive(item.href);
@@ -131,32 +139,29 @@ export default function Navbar() {
 
                 return (
                   <Link
-                    key={item.name}
+                    key={item.href}
                     href={item.href}
-                    className={`relative flex flex-col items-center justify-center px-3 py-1.5 rounded-[8px] text-[12.5px] font-medium transition-all group shrink-0 ${
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] text-xs font-medium whitespace-nowrap transition-all duration-150 shrink-0 select-none ${
                       active
-                        ? "text-[#6320EE]"
-                        : "text-gray-600 hover:text-gray-900"
+                        ? "bg-purple-50 text-[#6320EE] border border-purple-200/60 shadow-2xs"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
                     }`}
                   >
                     <Icon
-                      className={`w-4 h-4 mb-1 transition-transform group-hover:scale-110 ${
-                        active ? "text-[#6320EE]" : "text-gray-500 group-hover:text-gray-800"
+                      className={`w-3.5 h-3.5 transition-colors ${
+                        active ? "text-[#6320EE]" : "text-gray-400 group-hover:text-gray-600"
                       }`}
                     />
-                    <span className="whitespace-nowrap">{item.name}</span>
-                    {active && (
-                      <span className="absolute -bottom-2 left-1.5 right-1.5 h-0.5 bg-[#6320EE] rounded-[8px]" />
-                    )}
+                    <span>{item.name}</span>
                   </Link>
                 );
               })}
-            </div>
+            </nav>
 
             <button
               onClick={() => handleScroll("right")}
-              aria-label="Scroll right"
-              className="hidden sm:flex w-7.5 h-7.5 items-center justify-center rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors shrink-0 cursor-pointer shadow-2xs"
+              className="hidden lg:flex w-6 h-6 items-center justify-center rounded-[8px] bg-white border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 shrink-0 shadow-2xs z-10 cursor-pointer ml-1"
+              aria-label="Scroll navigation right"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -169,15 +174,15 @@ export default function Navbar() {
             <button
               onClick={() => setIsPrinterModalOpen(true)}
               className={`hidden sm:inline-flex items-center gap-1.5 h-8.5 px-3 rounded-[8px] text-xs font-medium border shadow-2xs transition-all cursor-pointer ${
-                isPrinterConnected
+                isConnected
                   ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
                   : "bg-white border-purple-200 text-[#6320EE] hover:bg-purple-50/70 hover:border-purple-300"
               }`}
             >
-              {isPrinterConnected ? (
+              {isConnected ? (
                 <>
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Printer Online</span>
+                  <span className="truncate max-w-[120px]">{deviceName || "Printer Online"}</span>
                 </>
               ) : (
                 <>
@@ -225,6 +230,15 @@ export default function Navbar() {
                   </div>
 
                   <Link
+                    href="/settings"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3.5 py-2 text-gray-700 hover:bg-gray-50 hover:text-[#6320EE]"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>Store Settings & GST</span>
+                  </Link>
+
+                  <Link
                     href="/onboarding"
                     onClick={() => setIsProfileDropdownOpen(false)}
                     className="flex items-center gap-2 px-3.5 py-2 text-gray-700 hover:bg-gray-50 hover:text-[#6320EE]"
@@ -252,16 +266,19 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* Connect Printer Modal */}
+      {/* Connect Printer Modal with WebUSB and Web Bluetooth */}
       {isPrinterModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-[8px] max-w-sm w-full p-5 shadow-2xl animate-in fade-in zoom-in duration-150 border border-gray-100">
+          <div className="bg-white rounded-[8px] max-w-md w-full p-5 shadow-2xl animate-in fade-in zoom-in duration-150 border border-gray-100">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-[8px] bg-purple-50 flex items-center justify-center text-[#6320EE]">
                   <Printer className="w-3.5 h-3.5" />
                 </div>
-                <h3 className="font-medium text-gray-900 text-sm">Thermal & Receipt Printer</h3>
+                <div>
+                  <h3 className="font-medium text-gray-900 text-sm">Thermal Receipt Printer</h3>
+                  <p className="text-[10px] text-gray-400 font-normal">Connect via Web USB or Web Bluetooth</p>
+                </div>
               </div>
               <button
                 onClick={() => setIsPrinterModalOpen(false)}
@@ -271,41 +288,99 @@ export default function Navbar() {
               </button>
             </div>
 
-            <div className="py-4 space-y-3 text-xs font-normal">
-              <p className="text-gray-500 leading-relaxed">
-                Connect your POS thermal printer via USB, Bluetooth, or Network for automatic invoice & receipt printing.
-              </p>
+            <div className="py-4 space-y-3.5 text-xs font-normal">
+              {/* Connected State */}
+              {isConnected ? (
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-[8px] p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-800 font-medium">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Connected & Online</span>
+                    </div>
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] uppercase font-medium">
+                      {connectionType}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-emerald-900 space-y-1">
+                    <p className="font-medium">{deviceName}</p>
+                    <p className="text-emerald-700">Protocol: ESC/POS Thermal Commands</p>
+                  </div>
+                </div>
+              ) : (
+                /* Connection Options */
+                <div className="space-y-2.5">
+                  <p className="text-gray-500 text-xs leading-relaxed">
+                    Select a connection protocol to pair your 58mm / 80mm thermal receipt printer:
+                  </p>
 
-              <div className="bg-gray-50 rounded-[8px] p-3 space-y-2 border border-gray-100">
-                <div className="flex justify-between items-center text-gray-700">
-                  <span>Status:</span>
-                  <span className={`font-medium ${isPrinterConnected ? "text-emerald-600" : "text-amber-600"}`}>
-                    {isPrinterConnected ? "Online (EPSON TM-T82)" : "Not Connected"}
-                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Option 1: Web USB */}
+                    <button
+                      type="button"
+                      disabled={isConnecting}
+                      onClick={async () => {
+                        const ok = await connectUsb();
+                        if (ok) setIsPrinterModalOpen(false);
+                      }}
+                      className="p-3 rounded-[8px] border border-gray-200 hover:border-[#6320EE] hover:bg-purple-50/20 text-left transition-all group cursor-pointer shadow-2xs disabled:opacity-50"
+                    >
+                      <div className="w-7 h-7 rounded-[8px] bg-purple-50 group-hover:bg-[#6320EE] text-[#6320EE] group-hover:text-white flex items-center justify-center mb-2 transition-colors">
+                        <Usb className="w-3.5 h-3.5" />
+                      </div>
+                      <h4 className="font-medium text-gray-900 text-xs">Web USB</h4>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Plug & Play USB Cable</p>
+                      <span className="inline-flex items-center gap-1 text-[10px] text-[#6320EE] font-medium mt-2">
+                        {isConnecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Pair USB</span>}
+                      </span>
+                    </button>
+
+                    {/* Option 2: Web Bluetooth */}
+                    <button
+                      type="button"
+                      disabled={isConnecting}
+                      onClick={async () => {
+                        const ok = await connectBluetooth();
+                        if (ok) setIsPrinterModalOpen(false);
+                      }}
+                      className="p-3 rounded-[8px] border border-gray-200 hover:border-blue-500 hover:bg-blue-50/20 text-left transition-all group cursor-pointer shadow-2xs disabled:opacity-50"
+                    >
+                      <div className="w-7 h-7 rounded-[8px] bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white flex items-center justify-center mb-2 transition-colors">
+                        <Bluetooth className="w-3.5 h-3.5" />
+                      </div>
+                      <h4 className="font-medium text-gray-900 text-xs">Web Bluetooth</h4>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Wireless Mobile POS</p>
+                      <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 font-medium mt-2">
+                        {isConnecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Scan Bluetooth</span>}
+                      </span>
+                    </button>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-gray-700">
-                  <span>Port / Protocol:</span>
-                  <span className="text-gray-500">USB / ESC-POS</span>
+              )}
+
+              {errorMessage && (
+                <div className="p-2.5 bg-rose-50 border border-rose-100 rounded-[8px] text-[11px] text-rose-600 flex items-center gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{errorMessage}</span>
                 </div>
-              </div>
+              )}
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
               <button
                 onClick={() => setIsPrinterModalOpen(false)}
                 className="h-8 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-[8px] cursor-pointer"
               >
-                Cancel
+                Close
               </button>
-              <button
-                onClick={() => {
-                  setIsPrinterConnected(!isPrinterConnected);
-                  setIsPrinterModalOpen(false);
-                }}
-                className="h-8 px-3.5 bg-[#6320EE] hover:bg-[#5219cd] text-white text-xs font-medium rounded-[8px] shadow-2xs cursor-pointer"
-              >
-                {isPrinterConnected ? "Disconnect" : "Connect Device"}
-              </button>
+              
+              {isConnected && (
+                <button
+                  onClick={() => disconnectPrinter()}
+                  className="h-8 px-3.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-medium rounded-[8px] cursor-pointer"
+                >
+                  Disconnect
+                </button>
+              )}
             </div>
           </div>
         </div>
