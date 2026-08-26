@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   Receipt,
@@ -20,8 +20,11 @@ import {
   ChevronRight,
   Printer,
   CheckCircle2,
-  X
+  X,
+  LogOut,
+  ChevronDown
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface NavItem {
   name: string;
@@ -45,9 +48,23 @@ const NAV_ITEMS: NavItem[] = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, activeBusiness, logout } = useAuth();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isPrinterConnected, setIsPrinterConnected] = useState(false);
   const [isPrinterModalOpen, setIsPrinterModalOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+
+  // Hide Navbar on Welcome, Auth and Onboarding pages
+  const isAuthPage =
+    pathname === "/welcome" ||
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/onboarding";
+
+  if (isAuthPage) {
+    return null;
+  }
 
   const isCurrentActive = (href: string) => {
     if (href === "/products" && (pathname === "/" || pathname === "/products")) {
@@ -68,19 +85,33 @@ export default function Navbar() {
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200/70 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
         <div className="max-w-[1600px] mx-auto px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
           
-          {/* Brand Logo */}
-          <Link href="/products" className="flex items-center shrink-0 select-none group">
-            <Image
-              src="/logo.png"
-              alt="RetailNext Logo"
-              width={145}
-              height={40}
-              priority
-              className="h-9 w-auto object-contain"
-            />
-          </Link>
+          {/* Brand Logo & Active Outlet Badge */}
+          <div className="flex items-center gap-3 shrink-0">
+            <Link href="/products" className="flex items-center shrink-0 select-none group">
+              <Image
+                src="/logo.png"
+                alt="RetailNext Logo"
+                width={140}
+                height={38}
+                priority
+                className="h-8.5 w-auto object-contain"
+              />
+            </Link>
 
-          {/* Navigation Tabs with comfortable spacing and size */}
+            {activeBusiness && (
+              <Link
+                href="/onboarding"
+                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-purple-50 hover:bg-purple-100/80 border border-purple-200 text-[#6320EE] text-[11px] font-medium transition-colors shadow-2xs cursor-pointer"
+                title="Switch Business / Outlet"
+              >
+                <Store className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate max-w-[150px]">{activeBusiness.name}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              </Link>
+            )}
+          </div>
+
+          {/* Navigation Tabs */}
           <div className="flex items-center gap-1.5 flex-1 max-w-4xl justify-center overflow-hidden px-2">
             <button
               onClick={() => handleScroll("left")}
@@ -131,8 +162,8 @@ export default function Navbar() {
             </button>
           </div>
 
-          {/* Right Section: Connect Printer + User Profile */}
-          <div className="flex items-center gap-3.5 shrink-0 pl-1">
+          {/* Right Section: Connect Printer + User Profile & Menu */}
+          <div className="flex items-center gap-3.5 shrink-0 pl-1 relative">
             
             {/* Connect Printer Button */}
             <button
@@ -156,29 +187,64 @@ export default function Navbar() {
               )}
             </button>
 
-            {/* User Profile */}
-            <div className="flex items-center gap-2.5">
-              <div className="relative">
-                <div className="w-9 h-9 rounded-[8px] bg-gradient-to-tr from-purple-500 to-indigo-600 p-[1.5px] shadow-2xs">
-                  <div className="w-full h-full rounded-[8px] bg-amber-100 flex items-center justify-center overflow-hidden">
-                    <img
-                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
-                      alt="Admin User"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                    />
-                    <span className="text-xs font-medium text-indigo-700">AU</span>
+            {/* User Profile Dropdown Button */}
+            <div className="relative">
+              <button
+                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                className="flex items-center gap-2 p-1 rounded-[8px] hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                <div className="relative">
+                  <div className="w-9 h-9 rounded-[8px] bg-gradient-to-tr from-purple-500 to-indigo-600 p-[1.5px] shadow-2xs">
+                    <div className="w-full h-full rounded-[8px] bg-amber-100 flex items-center justify-center overflow-hidden">
+                      <span className="text-xs font-medium text-indigo-700">
+                        {user?.fullName ? user.fullName.slice(0, 2).toUpperCase() : "AU"}
+                      </span>
+                    </div>
                   </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-[8px]"></span>
                 </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-[8px]"></span>
-              </div>
 
-              <div className="hidden md:flex flex-col text-left">
-                <span className="text-xs font-medium text-gray-900 leading-tight">Admin User</span>
-                <span className="text-[10.5px] text-gray-400 font-normal">Administrator</span>
-              </div>
+                <div className="hidden md:flex flex-col text-left">
+                  <span className="text-xs font-medium text-gray-900 leading-tight">
+                    {user?.fullName || "Admin User"}
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-normal">
+                    {activeBusiness?.name || "Administrator"}
+                  </span>
+                </div>
+
+                <ChevronDown className="w-3.5 h-3.5 text-gray-400 hidden sm:block" />
+              </button>
+
+              {/* Profile Menu Dropdown */}
+              {isProfileDropdownOpen && (
+                <div className="absolute right-0 top-12 w-52 bg-white rounded-[8px] shadow-xl border border-gray-100 py-1.5 z-50 animate-in fade-in zoom-in duration-100 text-xs">
+                  <div className="px-3.5 py-2 border-b border-gray-100">
+                    <p className="font-medium text-gray-900">{user?.fullName || "Store Owner"}</p>
+                    <p className="text-[11px] text-gray-400">{user?.phone ? `+91 ${user.phone}` : ""}</p>
+                  </div>
+
+                  <Link
+                    href="/onboarding"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3.5 py-2 text-gray-700 hover:bg-gray-50 hover:text-[#6320EE]"
+                  >
+                    <Store className="w-3.5 h-3.5" />
+                    <span>Switch Outlet / Business</span>
+                  </Link>
+
+                  <button
+                    onClick={() => {
+                      setIsProfileDropdownOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-2 px-3.5 py-2 text-rose-600 hover:bg-rose-50 cursor-pointer text-left border-t border-gray-100 mt-1"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Log Out</span>
+                  </button>
+                </div>
+              )}
             </div>
 
           </div>
@@ -205,7 +271,7 @@ export default function Navbar() {
               </button>
             </div>
 
-            <div className="py-4 space-y-3 text-xs">
+            <div className="py-4 space-y-3 text-xs font-normal">
               <p className="text-gray-500 leading-relaxed">
                 Connect your POS thermal printer via USB, Bluetooth, or Network for automatic invoice & receipt printing.
               </p>

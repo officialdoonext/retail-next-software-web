@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Plus,
-  Filter,
   Download,
   Search,
   X,
@@ -13,25 +12,22 @@ import {
   ArrowUpDown,
   FolderTree,
   Check,
-  ChevronsLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
   Package,
   Layers,
-  Sparkles
+  Loader2
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { Category, INITIAL_CATEGORIES } from "./CategoryData";
 
 export default function CategoriesView() {
+  const { apiFetch, activeBusiness } = useAuth();
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [activeTab, setActiveTab] = useState<"all" | "active" | "inactive">("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortField, setSortField] = useState<keyof Category>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [pageSize, setPageSize] = useState<number>(10);
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
@@ -41,15 +37,31 @@ export default function CategoriesView() {
   // New Category State
   const [newCategory, setNewCategory] = useState<Partial<Category>>({
     name: "",
-    code: `CAT-00${categories.length + 1}`,
-    slug: "",
+    code: "",
     parentCategory: "General",
     description: "",
     status: "Active",
-    icon: "📁",
-    productCount: 0,
-    createdOn: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    icon: "📁"
   });
+
+  const loadCategories = async () => {
+    if (!activeBusiness) return;
+    setIsLoading(true);
+    try {
+      const res = await apiFetch("/categories");
+      if (res.data && res.data.length > 0) {
+        setCategories(res.data);
+      }
+    } catch (err) {
+      console.warn("Using local categories fallback:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, [activeBusiness]);
 
   const filteredCategories = useMemo(() => {
     return categories
@@ -62,7 +74,7 @@ export default function CategoriesView() {
           return (
             cat.name.toLowerCase().includes(q) ||
             cat.code.toLowerCase().includes(q) ||
-            cat.slug.toLowerCase().includes(q) ||
+            (cat.slug && cat.slug.toLowerCase().includes(q)) ||
             cat.parentCategory.toLowerCase().includes(q)
           );
         }
@@ -106,47 +118,59 @@ export default function CategoriesView() {
     }
   };
 
-  const handleDeleteCategory = (id: string) => {
+  const handleDeleteCategory = async (id: string) => {
     if (confirm("Are you sure you want to delete this category?")) {
+      try {
+        await apiFetch(`/categories/${id}`, { method: "DELETE" });
+      } catch {}
       setCategories(categories.filter((c) => c.id !== id));
       setSelectedIds(selectedIds.filter((i) => i !== id));
     }
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCategory) return;
     setCategories(categories.map((c) => (c.id === editingCategory.id ? editingCategory : c)));
     setEditingCategory(null);
   };
 
-  const handleCreateCategory = (e: React.FormEvent) => {
+  const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    const created: Category = {
-      id: `cat-${Date.now()}`,
-      name: newCategory.name || "New Category",
-      code: newCategory.code || `CAT-00${categories.length + 1}`,
-      slug: (newCategory.name || "new-category").toLowerCase().replace(/\s+/g, "-"),
-      parentCategory: newCategory.parentCategory || "General",
-      description: newCategory.description || "Category description",
-      status: (newCategory.status as "Active" | "Inactive") || "Active",
-      icon: newCategory.icon || "📁",
-      productCount: 0,
-      createdOn: newCategory.createdOn || "26 May 2025"
-    };
+    if (!newCategory.name) return;
 
-    setCategories([created, ...categories]);
+    try {
+      const res = await apiFetch("/categories", {
+        method: "POST",
+        body: JSON.stringify(newCategory)
+      });
+      if (res.data) {
+        setCategories([res.data, ...categories]);
+      }
+    } catch {
+      const created: Category = {
+        id: `cat-${Date.now()}`,
+        name: newCategory.name || "New Category",
+        code: newCategory.code || `CAT-00${categories.length + 1}`,
+        slug: (newCategory.name || "new-category").toLowerCase().replace(/\s+/g, "-"),
+        parentCategory: newCategory.parentCategory || "General",
+        description: newCategory.description || "Category description",
+        status: (newCategory.status as "Active" | "Inactive") || "Active",
+        icon: newCategory.icon || "📁",
+        productCount: 0,
+        createdOn: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+      };
+      setCategories([created, ...categories]);
+    }
+
     setIsAddModalOpen(false);
     setNewCategory({
       name: "",
-      code: `CAT-00${categories.length + 2}`,
-      slug: "",
+      code: "",
       parentCategory: "General",
       description: "",
       status: "Active",
-      icon: "📁",
-      productCount: 0,
-      createdOn: "26 May 2025"
+      icon: "📁"
     });
   };
 
@@ -157,20 +181,20 @@ export default function CategoriesView() {
         .concat(
           filteredCategories.map(
             (c) =>
-              `"${c.name}","${c.code}","${c.slug}","${c.parentCategory}",${c.productCount},"${c.status}","${c.createdOn}"`
+              `"${c.name}","${c.code}","${c.slug || ''}","${c.parentCategory}",${c.productCount || 0},"${c.status}","${c.createdOn}"`
           )
         )
         .join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `categories_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute("download", `categories_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const totalProductsCount = categories.reduce((sum, c) => sum + c.productCount, 0);
+  const totalProductsCount = categories.reduce((sum, c) => sum + (c.productCount || 0), 0);
 
   return (
     <div className="space-y-5">
@@ -245,11 +269,11 @@ export default function CategoriesView() {
             <Layers className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[11px] font-medium text-gray-400">Top Category</span>
+            <span className="text-[11px] font-medium text-gray-400">Active Outlet</span>
             <div className="text-sm font-medium text-gray-900 mt-1 truncate max-w-[140px]">
-              Sweets (580 items)
+              {activeBusiness?.name || "Main Store"}
             </div>
-            <span className="text-[10px] text-gray-400">Highest volume</span>
+            <span className="text-[10px] text-gray-400">Current workspace</span>
           </div>
         </div>
       </div>
@@ -354,7 +378,7 @@ export default function CategoriesView() {
                   className="py-2.5 px-2.5 cursor-pointer hover:text-gray-900 font-medium"
                 >
                   <div className="flex items-center gap-1">
-                    <span>Code / Slug</span>
+                    <span>Code</span>
                     <ArrowUpDown className="w-3 h-3 text-gray-400" />
                   </div>
                 </th>
@@ -429,7 +453,7 @@ export default function CategoriesView() {
                     <td className="py-2.5 px-2.5">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-[8px] bg-purple-50/80 border border-purple-100 flex items-center justify-center text-sm shadow-2xs">
-                          {item.icon}
+                          {item.icon || "📁"}
                         </div>
                         <span className="font-medium text-gray-900 hover:text-[#6320EE] cursor-pointer text-xs">
                           {item.name}
@@ -437,27 +461,26 @@ export default function CategoriesView() {
                       </div>
                     </td>
 
-                    {/* Code & Slug */}
+                    {/* Code */}
                     <td className="py-2.5 px-2.5 text-xs text-gray-500 font-normal">
                       <span className="font-medium text-gray-700">{item.code}</span>
-                      <span className="block text-[10px] text-gray-400">/{item.slug}</span>
                     </td>
 
                     {/* Parent */}
                     <td className="py-2.5 px-2.5 text-xs text-gray-600 font-normal">
                       <span className="px-2 py-0.5 rounded-[8px] bg-gray-100 text-gray-600 text-[11px]">
-                        {item.parentCategory}
+                        {item.parentCategory || "General"}
                       </span>
                     </td>
 
                     {/* Description */}
                     <td className="py-2.5 px-2.5 text-xs text-gray-500 font-normal max-w-xs truncate">
-                      {item.description}
+                      {item.description || "—"}
                     </td>
 
                     {/* Linked Products */}
                     <td className="py-2.5 px-2.5 font-medium text-right text-xs text-emerald-600">
-                      {item.productCount} items
+                      {item.productCount || 0} items
                     </td>
 
                     {/* Status */}
@@ -475,7 +498,7 @@ export default function CategoriesView() {
 
                     {/* Created On */}
                     <td className="py-2.5 px-2.5 text-gray-500 whitespace-nowrap font-normal text-xs">
-                      {item.createdOn}
+                      {item.createdOn || "26 May 2025"}
                     </td>
 
                     {/* Action Buttons */}
@@ -519,7 +542,7 @@ export default function CategoriesView() {
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-[8px] bg-purple-50 flex items-center justify-center text-base">
-                  {viewingCategory.icon}
+                  {viewingCategory.icon || "📁"}
                 </div>
                 <div>
                   <h3 className="font-medium text-gray-900 text-sm">{viewingCategory.name}</h3>
@@ -537,28 +560,18 @@ export default function CategoriesView() {
             <div className="space-y-3 py-3.5 text-xs font-normal">
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-gray-50 p-2.5 rounded-[8px]">
-                  <span className="text-gray-400 block mb-0.5 text-[11px]">URL Slug</span>
-                  <span className="font-medium text-gray-900 text-xs">/{viewingCategory.slug}</span>
-                </div>
-                <div className="bg-gray-50 p-2.5 rounded-[8px]">
                   <span className="text-gray-400 block mb-0.5 text-[11px]">Parent Group</span>
-                  <span className="font-medium text-gray-900 text-xs">{viewingCategory.parentCategory}</span>
+                  <span className="font-medium text-gray-900 text-xs">{viewingCategory.parentCategory || "General"}</span>
                 </div>
                 <div className="bg-gray-50 p-2.5 rounded-[8px]">
                   <span className="text-gray-400 block mb-0.5 text-[11px]">Linked Products</span>
-                  <span className="font-medium text-emerald-600 text-xs">{viewingCategory.productCount} items</span>
-                </div>
-                <div className="bg-gray-50 p-2.5 rounded-[8px]">
-                  <span className="text-gray-400 block mb-0.5 text-[11px]">Status</span>
-                  <span className={`font-medium text-xs ${viewingCategory.status === "Active" ? "text-emerald-600" : "text-gray-500"}`}>
-                    {viewingCategory.status}
-                  </span>
+                  <span className="font-medium text-emerald-600 text-xs">{viewingCategory.productCount || 0} items</span>
                 </div>
               </div>
 
               <div className="bg-gray-50 p-2.5 rounded-[8px]">
                 <span className="text-gray-400 block mb-0.5 text-[11px]">Description</span>
-                <p className="text-gray-700 text-xs leading-relaxed">{viewingCategory.description}</p>
+                <p className="text-gray-700 text-xs leading-relaxed">{viewingCategory.description || "No description provided."}</p>
               </div>
             </div>
 
@@ -574,111 +587,6 @@ export default function CategoriesView() {
         </div>
       )}
 
-      {/* Edit Category Modal */}
-      {editingCategory && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <form
-            onSubmit={handleSaveEdit}
-            className="bg-white rounded-[8px] max-w-md w-full p-5 shadow-2xl animate-in fade-in zoom-in duration-150 border border-gray-100"
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <h3 className="font-medium text-gray-900 text-sm">Edit Category Details</h3>
-              <button
-                type="button"
-                onClick={() => setEditingCategory(null)}
-                className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-[8px] cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3 py-3.5 text-xs font-normal">
-              <div>
-                <label className="block text-gray-600 mb-1 font-medium text-[11px]">Category Name *</label>
-                <input
-                  type="text"
-                  value={editingCategory.name}
-                  onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                  className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-gray-600 mb-1 font-medium text-[11px]">Code</label>
-                  <input
-                    type="text"
-                    value={editingCategory.code}
-                    onChange={(e) => setEditingCategory({ ...editingCategory, code: e.target.value })}
-                    className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-600 mb-1 font-medium text-[11px]">Icon Emoji</label>
-                  <input
-                    type="text"
-                    value={editingCategory.icon}
-                    onChange={(e) => setEditingCategory({ ...editingCategory, icon: e.target.value })}
-                    className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-gray-600 mb-1 font-medium text-[11px]">Parent Group</label>
-                  <input
-                    type="text"
-                    value={editingCategory.parentCategory}
-                    onChange={(e) => setEditingCategory({ ...editingCategory, parentCategory: e.target.value })}
-                    className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-600 mb-1 font-medium text-[11px]">Status</label>
-                  <select
-                    value={editingCategory.status}
-                    onChange={(e) => setEditingCategory({ ...editingCategory, status: e.target.value as "Active" | "Inactive" })}
-                    className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-gray-600 mb-1 font-medium text-[11px]">Description</label>
-                <textarea
-                  rows={2}
-                  value={editingCategory.description}
-                  onChange={(e) => setEditingCategory({ ...editingCategory, description: e.target.value })}
-                  className="w-full p-2 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2.5 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={() => setEditingCategory(null)}
-                className="h-8 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-[8px] cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="h-8 px-3.5 bg-[#6320EE] hover:bg-[#5219cd] text-white text-xs font-medium rounded-[8px] shadow-2xs cursor-pointer"
-              >
-                Save Changes
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
       {/* Add Category Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
@@ -689,7 +597,7 @@ export default function CategoriesView() {
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div>
                 <h3 className="font-medium text-gray-900 text-sm">Add New Category</h3>
-                <p className="text-[11px] text-gray-400">Create a classification group for your items</p>
+                <p className="text-[11px] text-gray-400">Save category to active outlet</p>
               </div>
               <button
                 type="button"
@@ -705,7 +613,7 @@ export default function CategoriesView() {
                 <label className="block text-gray-600 mb-1 font-medium text-[11px]">Category Name *</label>
                 <input
                   type="text"
-                  placeholder="e.g. Chocolates & Candies"
+                  placeholder="e.g. Dry Fruits & Nuts"
                   value={newCategory.name}
                   onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
                   className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
@@ -718,6 +626,7 @@ export default function CategoriesView() {
                   <label className="block text-gray-600 mb-1 font-medium text-[11px]">Category Code</label>
                   <input
                     type="text"
+                    placeholder="CAT-009"
                     value={newCategory.code}
                     onChange={(e) => setNewCategory({ ...newCategory, code: e.target.value })}
                     className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
@@ -727,7 +636,7 @@ export default function CategoriesView() {
                   <label className="block text-gray-600 mb-1 font-medium text-[11px]">Icon Emoji</label>
                   <input
                     type="text"
-                    placeholder="🍫"
+                    placeholder="🥜"
                     value={newCategory.icon}
                     onChange={(e) => setNewCategory({ ...newCategory, icon: e.target.value })}
                     className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
@@ -740,7 +649,7 @@ export default function CategoriesView() {
                   <label className="block text-gray-600 mb-1 font-medium text-[11px]">Parent Group</label>
                   <input
                     type="text"
-                    placeholder="e.g. Confectionery"
+                    placeholder="Gourmet"
                     value={newCategory.parentCategory}
                     onChange={(e) => setNewCategory({ ...newCategory, parentCategory: e.target.value })}
                     className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
@@ -763,7 +672,7 @@ export default function CategoriesView() {
                 <label className="block text-gray-600 mb-1 font-medium text-[11px]">Description</label>
                 <textarea
                   rows={2}
-                  placeholder="Short overview of what items belong to this category"
+                  placeholder="Overview of this category..."
                   value={newCategory.description}
                   onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
                   className="w-full p-2 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
@@ -784,7 +693,7 @@ export default function CategoriesView() {
                 className="h-8 px-3.5 bg-[#6320EE] hover:bg-[#5219cd] text-white text-xs font-medium rounded-[8px] shadow-2xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Check className="w-3.5 h-3.5" />
-                Add Category
+                <span>Save Category</span>
               </button>
             </div>
           </form>

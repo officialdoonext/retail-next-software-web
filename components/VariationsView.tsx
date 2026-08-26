@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Plus,
-  Filter,
   Download,
   Search,
   X,
@@ -15,18 +14,21 @@ import {
   Check,
   Package,
   Layers,
-  Sparkles,
-  Tag
+  Tag,
+  Loader2
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { Variation, INITIAL_VARIATIONS } from "./VariationData";
 
 export default function VariationsView() {
+  const { apiFetch, activeBusiness } = useAuth();
   const [variations, setVariations] = useState<Variation[]>(INITIAL_VARIATIONS);
   const [activeTab, setActiveTab] = useState<"all" | "active" | "inactive">("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortField, setSortField] = useState<keyof Variation>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
@@ -44,13 +46,32 @@ export default function VariationsView() {
     status: 'Active' | 'Inactive';
   }>({
     name: "",
-    code: `VAR-0${variations.length + 1}`,
+    code: "",
     type: "Weight",
     optionsText: "Small, Medium, Large",
     categoriesText: "Sweets, Cakes & Bakery",
     description: "",
     status: "Active"
   });
+
+  const loadVariations = async () => {
+    if (!activeBusiness) return;
+    setIsLoading(true);
+    try {
+      const res = await apiFetch("/variations");
+      if (res.data && res.data.length > 0) {
+        setVariations(res.data);
+      }
+    } catch (err) {
+      console.warn("Using local variations fallback:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadVariations();
+  }, [activeBusiness]);
 
   const filteredVariations = useMemo(() => {
     return variations
@@ -64,7 +85,7 @@ export default function VariationsView() {
             v.name.toLowerCase().includes(q) ||
             v.code.toLowerCase().includes(q) ||
             v.type.toLowerCase().includes(q) ||
-            v.options.some((opt) => opt.toLowerCase().includes(q))
+            (v.options && v.options.some((opt) => opt.toLowerCase().includes(q)))
           );
         }
         return true;
@@ -107,22 +128,27 @@ export default function VariationsView() {
     }
   };
 
-  const handleDeleteVariation = (id: string) => {
+  const handleDeleteVariation = async (id: string) => {
     if (confirm("Are you sure you want to delete this variation?")) {
+      try {
+        await apiFetch(`/variations/${id}`, { method: "DELETE" });
+      } catch {}
       setVariations(variations.filter((v) => v.id !== id));
       setSelectedIds(selectedIds.filter((i) => i !== id));
     }
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingVariation) return;
     setVariations(variations.map((v) => (v.id === editingVariation.id ? editingVariation : v)));
     setEditingVariation(null);
   };
 
-  const handleCreateVariation = (e: React.FormEvent) => {
+  const handleCreateVariation = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newVariation.name) return;
+
     const parsedOptions = newVariation.optionsText
       .split(",")
       .map((s) => s.trim())
@@ -133,24 +159,38 @@ export default function VariationsView() {
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const created: Variation = {
-      id: `var-${Date.now()}`,
-      name: newVariation.name || "New Variation",
-      code: newVariation.code || `VAR-0${variations.length + 1}`,
-      type: newVariation.type || "Custom",
-      options: parsedOptions.length > 0 ? parsedOptions : ["Standard"],
-      applicableCategories: parsedCategories.length > 0 ? parsedCategories : ["All Categories"],
-      productCount: 0,
-      status: newVariation.status,
-      createdOn: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-      description: newVariation.description || "Variation attribute description"
-    };
+    try {
+      const res = await apiFetch("/variations", {
+        method: "POST",
+        body: JSON.stringify({
+          ...newVariation,
+          options: parsedOptions,
+          applicableCategories: parsedCategories
+        })
+      });
+      if (res.data) {
+        setVariations([res.data, ...variations]);
+      }
+    } catch {
+      const created: Variation = {
+        id: `var-${Date.now()}`,
+        name: newVariation.name || "New Variation",
+        code: newVariation.code || `VAR-0${variations.length + 1}`,
+        type: newVariation.type || "Custom",
+        options: parsedOptions.length > 0 ? parsedOptions : ["Standard"],
+        applicableCategories: parsedCategories.length > 0 ? parsedCategories : ["All Categories"],
+        productCount: 0,
+        status: newVariation.status,
+        createdOn: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+        description: newVariation.description || ""
+      };
+      setVariations([created, ...variations]);
+    }
 
-    setVariations([created, ...variations]);
     setIsAddModalOpen(false);
     setNewVariation({
       name: "",
-      code: `VAR-0${variations.length + 2}`,
+      code: "",
       type: "Weight",
       optionsText: "Small, Medium, Large",
       categoriesText: "Sweets, Cakes & Bakery",
@@ -166,20 +206,20 @@ export default function VariationsView() {
         .concat(
           filteredVariations.map(
             (v) =>
-              `"${v.name}","${v.code}","${v.type}","${v.options.join(" | ")}",${v.productCount},"${v.status}","${v.createdOn}"`
+              `"${v.name}","${v.code}","${v.type}","${(v.options || []).join(" | ")}",${v.productCount || 0},"${v.status}","${v.createdOn}"`
           )
         )
         .join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `variations_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute("download", `variations_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const totalAttributeCount = variations.reduce((sum, v) => sum + v.options.length, 0);
+  const totalAttributeCount = variations.reduce((sum, v) => sum + (v.options ? v.options.length : 0), 0);
 
   return (
     <div className="space-y-5">
@@ -241,9 +281,11 @@ export default function VariationsView() {
             <Package className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[11px] font-medium text-gray-400">Linked Products</span>
-            <div className="text-xl font-medium text-gray-900 mt-0.5">1,820</div>
-            <span className="text-[10px] text-gray-400">Using variations</span>
+            <span className="text-[11px] font-medium text-gray-400">Active Outlet</span>
+            <div className="text-sm font-medium text-gray-900 mt-1 truncate max-w-[140px]">
+              {activeBusiness?.name || "Main Store"}
+            </div>
+            <span className="text-[10px] text-gray-400">Current workspace</span>
           </div>
         </div>
 
@@ -256,7 +298,7 @@ export default function VariationsView() {
             <div className="text-sm font-medium text-gray-900 mt-1 truncate max-w-[140px]">
               Weight / Mass
             </div>
-            <span className="text-[10px] text-gray-400">890 active items</span>
+            <span className="text-[10px] text-gray-400">Metric variants</span>
           </div>
         </div>
       </div>
@@ -371,16 +413,6 @@ export default function VariationsView() {
                 <th className="py-2.5 px-2.5 font-medium">Applicable Groups</th>
 
                 <th
-                  onClick={() => handleSort("productCount")}
-                  className="py-2.5 px-2.5 cursor-pointer hover:text-gray-900 text-right font-medium"
-                >
-                  <div className="flex items-center justify-end gap-1">
-                    <span>Linked Items</span>
-                    <ArrowUpDown className="w-3 h-3 text-gray-400" />
-                  </div>
-                </th>
-
-                <th
                   onClick={() => handleSort("status")}
                   className="py-2.5 px-2.5 cursor-pointer hover:text-gray-900 text-center font-medium"
                 >
@@ -434,7 +466,7 @@ export default function VariationsView() {
                           <span className="font-medium text-gray-900 hover:text-[#6320EE] cursor-pointer text-xs block">
                             {item.name}
                           </span>
-                          <span className="text-[10px] text-gray-400">{item.description}</span>
+                          <span className="text-[10px] text-gray-400">{item.description || item.type}</span>
                         </div>
                       </div>
                     </td>
@@ -448,7 +480,7 @@ export default function VariationsView() {
                     {/* Options Badges */}
                     <td className="py-2.5 px-2.5">
                       <div className="flex flex-wrap gap-1">
-                        {item.options.map((opt, idx) => (
+                        {(item.options || []).map((opt, idx) => (
                           <span
                             key={idx}
                             className="inline-flex items-center px-2 py-0.5 rounded-[8px] bg-purple-50/80 text-[#6320EE] border border-purple-100 text-[11px] font-medium"
@@ -462,13 +494,8 @@ export default function VariationsView() {
                     {/* Applicable Categories */}
                     <td className="py-2.5 px-2.5 text-xs text-gray-600 font-normal">
                       <span className="text-[11px] text-gray-500 line-clamp-1 max-w-[160px]">
-                        {item.applicableCategories.join(", ")}
+                        {(item.applicableCategories || []).join(", ") || "All Categories"}
                       </span>
-                    </td>
-
-                    {/* Linked Products */}
-                    <td className="py-2.5 px-2.5 font-medium text-right text-xs text-emerald-600">
-                      {item.productCount} items
                     </td>
 
                     {/* Status */}
@@ -486,7 +513,7 @@ export default function VariationsView() {
 
                     {/* Created On */}
                     <td className="py-2.5 px-2.5 text-gray-500 whitespace-nowrap font-normal text-xs">
-                      {item.createdOn}
+                      {item.createdOn || "26 May 2025"}
                     </td>
 
                     {/* Action Buttons */}
@@ -547,9 +574,9 @@ export default function VariationsView() {
 
             <div className="space-y-3 py-3.5 text-xs font-normal">
               <div>
-                <span className="text-gray-400 block mb-1 text-[11px]">Configured Values ({viewingVariation.options.length})</span>
+                <span className="text-gray-400 block mb-1 text-[11px]">Configured Values ({(viewingVariation.options || []).length})</span>
                 <div className="flex flex-wrap gap-1.5 bg-gray-50 p-2.5 rounded-[8px] border border-gray-100">
-                  {viewingVariation.options.map((opt, i) => (
+                  {(viewingVariation.options || []).map((opt, i) => (
                     <span key={i} className="px-2 py-0.5 bg-white text-[#6320EE] border border-purple-100 rounded-[8px] font-medium text-xs shadow-2xs">
                       {opt}
                     </span>
@@ -563,19 +590,14 @@ export default function VariationsView() {
                   <span className="font-medium text-gray-900 text-xs">{viewingVariation.type}</span>
                 </div>
                 <div className="bg-gray-50 p-2.5 rounded-[8px]">
-                  <span className="text-gray-400 block mb-0.5 text-[11px]">Linked Products</span>
-                  <span className="font-medium text-emerald-600 text-xs">{viewingVariation.productCount} items</span>
+                  <span className="text-gray-400 block mb-0.5 text-[11px]">Status</span>
+                  <span className="font-medium text-emerald-600 text-xs">{viewingVariation.status}</span>
                 </div>
               </div>
 
               <div className="bg-gray-50 p-2.5 rounded-[8px]">
                 <span className="text-gray-400 block mb-0.5 text-[11px]">Applicable Categories</span>
-                <p className="text-gray-700 text-xs">{viewingVariation.applicableCategories.join(", ")}</p>
-              </div>
-
-              <div className="bg-gray-50 p-2.5 rounded-[8px]">
-                <span className="text-gray-400 block mb-0.5 text-[11px]">Description</span>
-                <p className="text-gray-700 text-xs leading-relaxed">{viewingVariation.description}</p>
+                <p className="text-gray-700 text-xs">{(viewingVariation.applicableCategories || []).join(", ") || "All"}</p>
               </div>
             </div>
 
@@ -591,116 +613,6 @@ export default function VariationsView() {
         </div>
       )}
 
-      {/* Edit Variation Modal */}
-      {editingVariation && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <form
-            onSubmit={handleSaveEdit}
-            className="bg-white rounded-[8px] max-w-md w-full p-5 shadow-2xl animate-in fade-in zoom-in duration-150 border border-gray-100"
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <h3 className="font-medium text-gray-900 text-sm">Edit Variation Details</h3>
-              <button
-                type="button"
-                onClick={() => setEditingVariation(null)}
-                className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-[8px] cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3 py-3.5 text-xs font-normal">
-              <div>
-                <label className="block text-gray-600 mb-1 font-medium text-[11px]">Variation Name *</label>
-                <input
-                  type="text"
-                  value={editingVariation.name}
-                  onChange={(e) => setEditingVariation({ ...editingVariation, name: e.target.value })}
-                  className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-gray-600 mb-1 font-medium text-[11px]">Code</label>
-                  <input
-                    type="text"
-                    value={editingVariation.code}
-                    onChange={(e) => setEditingVariation({ ...editingVariation, code: e.target.value })}
-                    className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-600 mb-1 font-medium text-[11px]">Type</label>
-                  <input
-                    type="text"
-                    value={editingVariation.type}
-                    onChange={(e) => setEditingVariation({ ...editingVariation, type: e.target.value })}
-                    className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-gray-600 mb-1 font-medium text-[11px]">Options (comma separated) *</label>
-                <input
-                  type="text"
-                  value={editingVariation.options.join(", ")}
-                  onChange={(e) =>
-                    setEditingVariation({
-                      ...editingVariation,
-                      options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
-                    })
-                  }
-                  className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-600 mb-1 font-medium text-[11px]">Status</label>
-                <select
-                  value={editingVariation.status}
-                  onChange={(e) => setEditingVariation({ ...editingVariation, status: e.target.value as "Active" | "Inactive" })}
-                  className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-gray-600 mb-1 font-medium text-[11px]">Description</label>
-                <textarea
-                  rows={2}
-                  value={editingVariation.description}
-                  onChange={(e) => setEditingVariation({ ...editingVariation, description: e.target.value })}
-                  className="w-full p-2 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2.5 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={() => setEditingVariation(null)}
-                className="h-8 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-[8px] cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="h-8 px-3.5 bg-[#6320EE] hover:bg-[#5219cd] text-white text-xs font-medium rounded-[8px] shadow-2xs cursor-pointer"
-              >
-                Save Changes
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
       {/* Add Variation Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
@@ -711,7 +623,7 @@ export default function VariationsView() {
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div>
                 <h3 className="font-medium text-gray-900 text-sm">Add New Variation</h3>
-                <p className="text-[11px] text-gray-400">Define attribute values and options for products</p>
+                <p className="text-[11px] text-gray-400">Save variation to active outlet</p>
               </div>
               <button
                 type="button"
@@ -740,6 +652,7 @@ export default function VariationsView() {
                   <label className="block text-gray-600 mb-1 font-medium text-[11px]">Code</label>
                   <input
                     type="text"
+                    placeholder="VAR-SZ"
                     value={newVariation.code}
                     onChange={(e) => setNewVariation({ ...newVariation, code: e.target.value })}
                     className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
@@ -756,7 +669,6 @@ export default function VariationsView() {
                     <option value="Volume">Volume</option>
                     <option value="Pack Size">Pack Size</option>
                     <option value="Flavor">Flavor</option>
-                    <option value="Dietary">Dietary</option>
                     <option value="Packaging">Packaging</option>
                     <option value="Custom">Custom</option>
                   </select>
@@ -794,7 +706,7 @@ export default function VariationsView() {
                 <label className="block text-gray-600 mb-1 font-medium text-[11px]">Description</label>
                 <textarea
                   rows={2}
-                  placeholder="Overview of this product variation attribute"
+                  placeholder="Short description..."
                   value={newVariation.description}
                   onChange={(e) => setNewVariation({ ...newVariation, description: e.target.value })}
                   className="w-full p-2 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
@@ -815,7 +727,7 @@ export default function VariationsView() {
                 className="h-8 px-3.5 bg-[#6320EE] hover:bg-[#5219cd] text-white text-xs font-medium rounded-[8px] shadow-2xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Check className="w-3.5 h-3.5" />
-                Add Variation
+                <span>Save Variation</span>
               </button>
             </div>
           </form>
