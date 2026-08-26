@@ -26,6 +26,9 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { Product, INITIAL_PRODUCTS } from "./ProductData";
 import { Category } from "./CategoryData";
+import StatCards from "./StatCards";
+import * as XLSX from "xlsx";
+import { FileSpreadsheet, Package } from "lucide-react";
 import { Variation } from "./VariationData";
 
 interface ProductVariantItem {
@@ -40,7 +43,7 @@ interface ProductVariantItem {
   status: string;
 }
 
-export default function ProductsTable() {
+export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?: () => void }) {
   const { apiFetch, activeBusiness } = useAuth();
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -190,7 +193,13 @@ export default function ProductsTable() {
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        return (
+        
+  const totalProductsCount = products.length;
+  const lowStockCount = products.filter(p => p.stock > 0 && p.stock <= (p.bufferStock || 5)).length;
+  const outOfStockCount = products.filter(p => p.stock <= 0 || p.status === 'Out of Stock').length;
+  const totalInventoryValue = products.reduce((acc, p) => acc + (p.stock * p.sellingPrice), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return (
           item.name.toLowerCase().includes(q) ||
           item.sku.toLowerCase().includes(q) ||
           item.category.toLowerCase().includes(q) ||
@@ -260,6 +269,28 @@ export default function ProductsTable() {
     setEditingProduct(null);
   };
 
+  
+  const handleExportCSV = () => {
+    if (products.length === 0) return;
+    const ws = XLSX.utils.json_to_sheet(products.map(p => ({
+      "Product Name": p.name,
+      "SKU": p.sku,
+      "Barcode": p.barcode || "",
+      "Category": p.category,
+      "Brand": p.brand,
+      "Unit": p.unit,
+      "Selling Price": p.sellingPrice,
+      "Cost Price": p.costPrice,
+      "Stock": p.stock,
+      "Buffer Stock": p.bufferStock || 5,
+      "Status": p.status,
+      "Added On": p.addedOn
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Live Products");
+    XLSX.writeFile(wb, "products_catalog.xlsx");
+  };
+
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProduct.name.trim()) return;
@@ -270,7 +301,7 @@ export default function ProductsTable() {
     // 1. Upload to ImageKit if an image was picked
     if (imageBase64) {
       try {
-        const uploadRes = await fetch("http://localhost:5000/api/v1/upload", {
+        const uploadRes = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1") + "/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -370,7 +401,22 @@ export default function ProductsTable() {
     );
   };
 
+  const totalProductsCount = products.length;
+  const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= (p.bufferStock || 5)).length;
+  const outOfStockCount = products.filter((p) => p.stock <= 0 || p.status === "Out of Stock").length;
+  const totalInventoryValue = products
+    .reduce((acc, p) => acc + p.stock * p.sellingPrice, 0)
+    .toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   return (
+    <div className="space-y-5">
+      <button id="export-products-trigger" onClick={handleExportCSV} className="hidden" />
+      <StatCards
+        totalProducts={totalProductsCount}
+        lowStock={lowStockCount}
+        outOfStock={outOfStockCount}
+        totalValue={totalInventoryValue}
+      />
     <div className="bg-white rounded-[8px] border border-gray-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.02)] overflow-hidden">
       {/* Top Filter Tabs & Controls Header */}
       <div className="p-3.5 sm:p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -576,6 +622,40 @@ export default function ProductsTable() {
             </thead>
 
             <tbody className="divide-y divide-gray-100 text-xs">
+              {filteredProducts.length === 0 && (
+                <tr>
+                  <td colSpan={11} className="py-12 text-center">
+                    <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-3">
+                      <div className="w-12 h-12 rounded-[8px] bg-purple-50 flex items-center justify-center text-[#6320EE]">
+                        <Package className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900 text-sm">No products found</h4>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Add your first product manually or bulk import from Excel.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          onClick={() => onOpenBulkUpload && onOpenBulkUpload()}
+                          className="h-8 px-3 bg-white border border-purple-200 hover:border-purple-300 hover:bg-purple-50 text-[#6320EE] text-xs font-medium rounded-[8px] flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        >
+                          <FileSpreadsheet className="w-3.5 h-3.5" />
+                          <span>Bulk Upload</span>
+                        </button>
+                        <button
+                          onClick={() => setIsAddModalOpen(true)}
+                          className="h-8 px-3.5 bg-[#6320EE] hover:bg-[#5218cf] text-white text-xs font-medium rounded-[8px] flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add Product</span>
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+
               {filteredProducts.map((item) => {
                 const isSelected = selectedIds.includes(item.id);
                 const isOutOfStock = item.stock <= 0 || item.status === "Out of Stock";
@@ -1433,6 +1513,7 @@ export default function ProductsTable() {
           </form>
         </div>
       )}
+      </div>
     </div>
   );
 }
