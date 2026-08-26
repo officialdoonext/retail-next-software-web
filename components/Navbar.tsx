@@ -1,0 +1,249 @@
+"use client";
+
+import React, { useRef, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import {
+  Home,
+  Receipt,
+  ShoppingCart,
+  Package,
+  Boxes,
+  Users,
+  Store,
+  UserCheck,
+  FileText,
+  CreditCard,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Printer,
+  CheckCircle2,
+  X
+} from "lucide-react";
+
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { name: "Dashboard", href: "/dashboard", icon: Home },
+  { name: "Sales", href: "/sales", icon: Receipt },
+  { name: "Purchases", href: "/purchases", icon: ShoppingCart },
+  { name: "Products", href: "/products", icon: Package },
+  { name: "Inventory", href: "/inventory", icon: Boxes },
+  { name: "Customers", href: "/customers", icon: Users },
+  { name: "Vendors", href: "/vendors", icon: Store },
+  { name: "Employees", href: "/employees", icon: UserCheck },
+  { name: "Reports", href: "/reports", icon: FileText },
+  { name: "Expenses", href: "/expenses", icon: CreditCard },
+  { name: "Settings", href: "/settings", icon: Settings },
+];
+
+export default function Navbar() {
+  const pathname = usePathname();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isPrinterConnected, setIsPrinterConnected] = useState(false);
+  const [isPrinterModalOpen, setIsPrinterModalOpen] = useState(false);
+
+  const isCurrentActive = (href: string) => {
+    if (href === "/products" && (pathname === "/" || pathname === "/products")) {
+      return true;
+    }
+    return pathname === href;
+  };
+
+  const handleScroll = (direction: "left" | "right") => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = direction === "left" ? -250 : 250;
+      scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    }
+  };
+
+  return (
+    <>
+      <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+        <div className="max-w-[1600px] mx-auto px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
+          
+          {/* Brand Logo from public/logo.png */}
+          <Link href="/products" className="flex items-center shrink-0 select-none group">
+            <Image
+              src="/logo.png"
+              alt="RetailNext Logo"
+              width={150}
+              height={40}
+              priority
+              className="h-9 w-auto object-contain"
+            />
+          </Link>
+
+          {/* Navigation Tabs with Spacing and Scroll Controls */}
+          <div className="flex items-center gap-2 flex-1 max-w-4xl justify-center overflow-hidden px-2">
+            <button
+              onClick={() => handleScroll("left")}
+              aria-label="Scroll left"
+              className="hidden sm:flex p-1.5 rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors shrink-0"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <div
+              ref={scrollContainerRef}
+              className="flex items-center gap-3 sm:gap-4 md:gap-5 overflow-x-auto no-scrollbar scroll-smooth py-1 px-2"
+            >
+              {NAV_ITEMS.map((item) => {
+                const active = isCurrentActive(item.href);
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`relative flex flex-col items-center justify-center px-2.5 py-1.5 rounded-[8px] text-xs font-medium transition-all group shrink-0 ${
+                      active
+                        ? "text-[#6320EE]"
+                        : "text-gray-500 hover:text-gray-900"
+                    }`}
+                  >
+                    <Icon
+                      className={`w-4 h-4 mb-1 transition-transform group-hover:scale-110 ${
+                        active ? "text-[#6320EE]" : "text-gray-500 group-hover:text-gray-800"
+                      }`}
+                    />
+                    <span className="whitespace-nowrap">{item.name}</span>
+                    {active && (
+                      <span className="absolute -bottom-2 left-1 right-1 h-0.5 bg-[#6320EE] rounded-[8px]" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => handleScroll("right")}
+              aria-label="Scroll right"
+              className="hidden sm:flex p-1.5 rounded-[8px] border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors shrink-0"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Right Section: Connect Printer + User Profile */}
+          <div className="flex items-center gap-3.5 shrink-0 pl-1">
+            
+            {/* Connect Printer Button */}
+            <button
+              onClick={() => setIsPrinterModalOpen(true)}
+              className={`hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] text-xs font-medium border transition-all cursor-pointer ${
+                isPrinterConnected
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                  : "bg-purple-50/70 border-purple-200 text-[#6320EE] hover:bg-purple-100/80"
+              }`}
+            >
+              {isPrinterConnected ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Printer Connected</span>
+                </>
+              ) : (
+                <>
+                  <Printer className="w-3.5 h-3.5 text-[#6320EE]" />
+                  <span>Connect Printer</span>
+                </>
+              )}
+            </button>
+
+            {/* User Profile */}
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <div className="w-9 h-9 rounded-[8px] bg-gradient-to-tr from-purple-500 to-indigo-600 p-[1.5px] shadow-sm">
+                  <div className="w-full h-full rounded-[8px] bg-amber-100 flex items-center justify-center overflow-hidden">
+                    <img
+                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
+                      alt="Admin User"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                    <span className="text-xs font-medium text-indigo-700">AU</span>
+                  </div>
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-[8px]"></span>
+              </div>
+
+              <div className="hidden md:flex flex-col text-left">
+                <span className="text-sm font-medium text-gray-900 leading-tight">Admin User</span>
+                <span className="text-xs text-gray-400 font-normal">Administrator</span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </header>
+
+      {/* Connect Printer Modal */}
+      {isPrinterModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-[8px] max-w-sm w-full p-5 shadow-2xl animate-in fade-in zoom-in duration-150 border border-gray-100">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-[8px] bg-purple-50 flex items-center justify-center text-[#6320EE]">
+                  <Printer className="w-4 h-4" />
+                </div>
+                <h3 className="font-medium text-gray-900 text-sm">Thermal & Receipt Printer</h3>
+              </div>
+              <button
+                onClick={() => setIsPrinterModalOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-[8px]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="py-4 space-y-3 text-xs">
+              <p className="text-gray-500">
+                Connect your POS thermal printer via USB, Bluetooth, or Network for automatic invoice & receipt printing.
+              </p>
+
+              <div className="bg-gray-50 rounded-[8px] p-3 space-y-2 border border-gray-100">
+                <div className="flex justify-between items-center text-gray-700">
+                  <span>Status:</span>
+                  <span className={`font-medium ${isPrinterConnected ? "text-emerald-600" : "text-amber-600"}`}>
+                    {isPrinterConnected ? "Online (EPSON TM-T82)" : "Not Connected"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-gray-700">
+                  <span>Port / Protocol:</span>
+                  <span className="text-gray-500">USB / ESC-POS</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              <button
+                onClick={() => setIsPrinterModalOpen(false)}
+                className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-[8px]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setIsPrinterConnected(!isPrinterConnected);
+                  setIsPrinterModalOpen(false);
+                }}
+                className="px-3.5 py-1.5 bg-[#6320EE] hover:bg-[#5219cd] text-white text-xs font-medium rounded-[8px] shadow-sm"
+              >
+                {isPrinterConnected ? "Disconnect" : "Connect Device"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
