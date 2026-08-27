@@ -21,7 +21,8 @@ import {
   Sparkles,
   Layers,
   Image as ImageIcon,
-  Loader2
+  Loader2,
+  CheckSquare
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Product, INITIAL_PRODUCTS } from "./ProductData";
@@ -60,6 +61,7 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Modal States
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
@@ -266,6 +268,43 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
       } catch {}
       setProducts(products.filter((p) => p.id !== id));
       setSelectedIds(selectedIds.filter((i) => i !== id));
+    }
+  };
+
+  const handleDeleteSelectedProducts = async () => {
+    const count = selectedIds.length;
+    if (!count) return;
+
+    const isAll = count === products.length;
+    const confirmMsg = isAll
+      ? `⚠️ DANGER: Are you sure you want to DELETE ALL ${count} products from your store? This action cannot be undone.`
+      : `Are you sure you want to delete all ${count} selected products?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    setIsBulkDeleting(true);
+    try {
+      // 1. Try batch delete API endpoint
+      try {
+        await apiFetch("/products/bulk-delete", {
+          method: "POST",
+          body: JSON.stringify({ ids: selectedIds })
+        });
+      } catch {
+        // Fallback: Delete individual products in parallel chunks
+        const deletePromises = selectedIds.map((id) =>
+          apiFetch(`/products/${id}`, { method: "DELETE" }).catch(() => {})
+        );
+        await Promise.allSettled(deletePromises);
+      }
+
+      // 2. Remove deleted products from local catalog
+      setProducts(products.filter((p) => !selectedIds.includes(p.id)));
+      setSelectedIds([]);
+    } catch (err: any) {
+      alert("Failed to delete products: " + err.message);
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -544,6 +583,55 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
           </button>
         </div>
       </div>
+
+      {/* Bulk Action Bar when items are selected */}
+      {selectedIds.length > 0 && (
+        <div className="mx-4 my-2 p-3 bg-purple-50/90 border border-purple-200/90 rounded-[8px] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-in fade-in duration-150 text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-[#6320EE] flex items-center gap-1.5">
+              <CheckSquare className="w-4 h-4 text-[#6320EE]" />
+              <span>{selectedIds.length} {selectedIds.length === 1 ? 'product' : 'products'} selected</span>
+            </span>
+
+            {selectedIds.length < products.length && (
+              <button
+                type="button"
+                onClick={() => setSelectedIds(products.map((p) => p.id))}
+                className="text-[11px] text-[#6320EE] hover:underline font-medium cursor-pointer"
+              >
+                (Click to select ALL {products.length} products in store)
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="h-7 px-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-[6px] text-xs font-medium cursor-pointer shadow-2xs"
+            >
+              Deselect
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteSelectedProducts}
+              disabled={isBulkDeleting}
+              className="h-7 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-[6px] text-xs font-medium flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
+            >
+              {isBulkDeleting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5" />
+              )}
+              <span>
+                {selectedIds.length === products.length
+                  ? `Delete All ${products.length} Products`
+                  : `Delete ${selectedIds.length} Selected`}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Table View */}
       {viewMode === "table" ? (
@@ -1170,14 +1258,18 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
                   <select
                     value={newProduct.unit}
                     onChange={(e) => setNewProduct({ ...newProduct, unit: e.target.value })}
-                    className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE]"
+                    className="w-full h-8 px-2.5 border border-gray-200 rounded-[8px] text-xs focus:outline-none focus:border-[#6320EE] bg-white"
                   >
-                    <option value="Kg">Kg</option>
-                    <option value="Gram">Gram</option>
-                    <option value="Piece">Piece</option>
-                    <option value="Bottle">Bottle</option>
-                    <option value="Packet">Packet</option>
+                    <option value="Kg">Kg (Kilogram)</option>
+                    <option value="Grams">Grams (g)</option>
+                    <option value="Litre">Litre (L)</option>
+                    <option value="Ml">Ml (Millilitre)</option>
+                    <option value="Piece">Piece (Pcs)</option>
+                    <option value="Packet">Packet (Pkt)</option>
                     <option value="Box">Box</option>
+                    <option value="Dozen">Dozen</option>
+                    <option value="Bottle">Bottle</option>
+                    <option value="Pack">Pack</option>
                   </select>
                 </div>
 

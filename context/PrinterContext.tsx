@@ -33,6 +33,7 @@ export interface ReceiptPrintData {
   paidAmount?: number;
   changeAmount?: number;
   splitDetails?: { cash?: number; upi?: number; card?: number };
+  footerMessage?: string;
 }
 
 interface PrinterContextType {
