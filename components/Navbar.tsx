@@ -98,13 +98,13 @@ export default function Navbar() {
           
           {/* Brand Logo & Active Outlet Badge */}
           <div className="flex items-center gap-3 shrink-0">
-            <Link href="/products" className="flex items-center shrink-0 select-none group">
+            <Link href="/products" className="flex items-center shrink-0 select-none group" title="RetailNext">
               <Image
-                src="/logo.png"
+                src="/doonext-fav.png"
                 alt="RetailNext Logo"
-                width={132}
-                height={32}
-                className="h-8 w-auto object-contain transition-transform group-hover:scale-[1.02]"
+                width={36}
+                height={36}
+                className="h-9 w-9 object-contain transition-transform group-hover:scale-105"
                 priority
               />
             </Link>
@@ -120,10 +120,10 @@ export default function Navbar() {
           </div>
 
           {/* Navigation Links with Horizontal Scroll Controls */}
-          <div className="flex-1 flex items-center justify-center relative min-w-0 max-w-4xl mx-2">
+          <div className="flex-1 flex items-center justify-center relative min-w-0 mx-2 lg:mx-4">
             <button
               onClick={() => handleScroll("left")}
-              className="hidden lg:flex w-6 h-6 items-center justify-center rounded-[8px] bg-white border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 shrink-0 shadow-2xs z-10 cursor-pointer mr-1"
+              className="hidden lg:flex w-6 h-6 items-center justify-center rounded-[8px] bg-white border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 shrink-0 shadow-2xs z-10 cursor-pointer mr-1.5"
               aria-label="Scroll navigation left"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -131,7 +131,7 @@ export default function Navbar() {
 
             <nav
               ref={scrollContainerRef}
-              className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth py-1 px-1 max-w-full"
+              className="flex items-center justify-center gap-1.5 sm:gap-2.5 overflow-x-auto no-scrollbar scroll-smooth py-1 px-1 max-w-full"
             >
               {NAV_ITEMS.map((item) => {
                 const active = isCurrentActive(item.href);
@@ -141,18 +141,18 @@ export default function Navbar() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] text-xs font-medium whitespace-nowrap transition-all duration-150 shrink-0 select-none ${
+                    className={`flex flex-col items-center justify-center px-3 sm:px-3.5 py-1.5 rounded-[8px] transition-all duration-150 shrink-0 select-none min-w-[62px] sm:min-w-[70px] ${
                       active
-                        ? "bg-purple-50 text-[#6320EE] border border-purple-200/60 shadow-2xs"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
+                        ? "bg-purple-50 text-[#6320EE] border border-purple-200/80 shadow-2xs"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70 border border-transparent"
                     }`}
                   >
                     <Icon
-                      className={`w-3.5 h-3.5 transition-colors ${
+                      className={`w-[18px] h-[18px] mb-1 transition-colors ${
                         active ? "text-[#6320EE]" : "text-gray-400 group-hover:text-gray-600"
                       }`}
                     />
-                    <span>{item.name}</span>
+                    <span className="text-[12px] font-medium leading-tight tracking-tight">{item.name}</span>
                   </Link>
                 );
               })}
@@ -160,7 +160,7 @@ export default function Navbar() {
 
             <button
               onClick={() => handleScroll("right")}
-              className="hidden lg:flex w-6 h-6 items-center justify-center rounded-[8px] bg-white border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 shrink-0 shadow-2xs z-10 cursor-pointer ml-1"
+              className="hidden lg:flex w-6 h-6 items-center justify-center rounded-[8px] bg-white border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 shrink-0 shadow-2xs z-10 cursor-pointer ml-1.5"
               aria-label="Scroll navigation right"
             >
               <ChevronRight className="w-4 h-4" />
@@ -168,57 +168,42 @@ export default function Navbar() {
           </div>
 
           {/* Right Section: Connect Printer + User Profile & Menu */}
-          <div className="flex items-center gap-3.5 shrink-0 pl-1 relative">
+          <div className="flex items-center gap-2.5 shrink-0 pl-1 relative">
             
-            {/* Connect Printer Button */}
+            {/* Connect Printer Button (Icon Only) */}
             <button
               onClick={() => setIsPrinterModalOpen(true)}
-              className={`hidden sm:inline-flex items-center gap-1.5 h-8.5 px-3 rounded-[8px] text-xs font-medium border shadow-2xs transition-all cursor-pointer ${
+              className={`w-8.5 h-8.5 flex items-center justify-center rounded-[8px] border shadow-2xs transition-all cursor-pointer ${
                 isConnected
                   ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
                   : "bg-white border-purple-200 text-[#6320EE] hover:bg-purple-50/70 hover:border-purple-300"
               }`}
+              title={isConnected ? (deviceName || "Printer Online") : "Connect Thermal Printer"}
             >
               {isConnected ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="truncate max-w-[120px]">{deviceName || "Printer Online"}</span>
-                </>
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               ) : (
-                <>
-                  <Printer className="w-3.5 h-3.5 text-[#6320EE]" />
-                  <span>Connect Printer</span>
-                </>
+                <Printer className="w-4 h-4 text-[#6320EE]" />
               )}
             </button>
 
-            {/* User Profile Dropdown Button */}
+            {/* User Profile Dropdown Button (First Letter Only) */}
             <div className="relative">
               <button
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                className="flex items-center gap-2 p-1 rounded-[8px] hover:bg-gray-50 transition-colors cursor-pointer"
+                className="flex items-center justify-center p-0.5 rounded-[8px] hover:ring-2 hover:ring-purple-200 transition-all cursor-pointer"
+                title={user?.fullName || "Account Profile"}
               >
                 <div className="relative">
-                  <div className="w-9 h-9 rounded-[8px] bg-gradient-to-tr from-purple-500 to-indigo-600 p-[1.5px] shadow-2xs">
-                    <div className="w-full h-full rounded-[8px] bg-amber-100 flex items-center justify-center overflow-hidden">
-                      <span className="text-xs font-medium text-indigo-700">
-                        {user?.fullName ? user.fullName.slice(0, 2).toUpperCase() : "AU"}
+                  <div className="w-8.5 h-8.5 rounded-[8px] bg-gradient-to-tr from-purple-500 to-indigo-600 p-[1.5px] shadow-2xs">
+                    <div className="w-full h-full rounded-[7px] bg-purple-50 flex items-center justify-center overflow-hidden">
+                      <span className="text-xs font-bold text-[#6320EE]">
+                        {user?.fullName ? user.fullName.trim().charAt(0).toUpperCase() : "A"}
                       </span>
                     </div>
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-[8px]"></span>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 border-2 border-white rounded-full"></span>
                 </div>
-
-                <div className="hidden md:flex flex-col text-left">
-                  <span className="text-xs font-medium text-gray-900 leading-tight">
-                    {user?.fullName || "Admin User"}
-                  </span>
-                  <span className="text-[10px] text-gray-400 font-normal">
-                    {activeBusiness?.name || "Administrator"}
-                  </span>
-                </div>
-
-                <ChevronDown className="w-3.5 h-3.5 text-gray-400 hidden sm:block" />
               </button>
 
               {/* Profile Menu Dropdown */}

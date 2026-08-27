@@ -16,6 +16,11 @@ const sora = Sora({
 export const metadata: Metadata = {
   title: "RetailNext - Products & Inventory Management",
   description: "Manage all your products, inventory, sales and purchases with RetailNext.",
+  icons: {
+    icon: "/doonext-fav.png",
+    shortcut: "/doonext-fav.png",
+    apple: "/doonext-fav.png",
+  }
 };
 
 export default function RootLayout({

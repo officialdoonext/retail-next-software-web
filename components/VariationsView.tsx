@@ -35,6 +35,7 @@ export default function VariationsView() {
   const [pageSize, setPageSize] = useState<number>(45);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
@@ -176,6 +177,7 @@ export default function VariationsView() {
       .map((s) => s.trim())
       .filter(Boolean);
 
+    setIsSubmitting(true);
     try {
       const res = await apiFetch("/variations", {
         method: "POST",
@@ -202,18 +204,19 @@ export default function VariationsView() {
         description: newVariation.description || ""
       };
       setVariations([created, ...variations]);
+    } finally {
+      setIsSubmitting(false);
+      setIsAddModalOpen(false);
+      setNewVariation({
+        name: "",
+        code: "",
+        type: "Weight",
+        optionsText: "Small, Medium, Large",
+        categoriesText: "Sweets, Cakes & Bakery",
+        description: "",
+        status: "Active"
+      });
     }
-
-    setIsAddModalOpen(false);
-    setNewVariation({
-      name: "",
-      code: "",
-      type: "Weight",
-      optionsText: "Small, Medium, Large",
-      categoriesText: "Sweets, Cakes & Bakery",
-      description: "",
-      status: "Active"
-    });
   };
 
   const handleExport = () => {
@@ -454,7 +457,14 @@ export default function VariationsView() {
             </thead>
 
             <tbody className="divide-y divide-gray-100 text-xs">
-              {filteredVariations.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={9} className="py-16 text-center text-gray-400">
+                    <Loader2 className="w-6 h-6 text-[#6320EE] animate-spin mx-auto mb-2" />
+                    <span className="text-xs font-medium text-gray-600 block">Loading variations...</span>
+                  </td>
+                </tr>
+              ) : filteredVariations.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-gray-400">
                     No variations found. Click "+ Add Variation" to create one.
@@ -826,9 +836,10 @@ export default function VariationsView() {
               </button>
               <button
                 type="submit"
-                className="h-8 px-3.5 bg-[#6320EE] hover:bg-[#5219cd] text-white text-xs font-medium rounded-[8px] shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                disabled={isSubmitting}
+                className="h-8 px-3.5 bg-[#6320EE] hover:bg-[#5219cd] text-white text-xs font-medium rounded-[8px] shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                <Check className="w-3.5 h-3.5" />
+                {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 <span>Save Variation</span>
               </button>
             </div>

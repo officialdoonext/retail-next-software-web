@@ -375,7 +375,11 @@ export default function ItemBillingView({ products, categories, onInvoiceCreated
             disabled={cart.length === 0 || isDraftSubmitting}
             className="inline-flex items-center gap-1.5 h-8.5 px-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-[8px] text-xs font-medium shadow-2xs transition-all cursor-pointer disabled:opacity-40"
           >
-            <PauseCircle className="w-3.5 h-3.5 text-gray-500" />
+            {isDraftSubmitting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#6320EE]" />
+            ) : (
+              <PauseCircle className="w-3.5 h-3.5 text-gray-500" />
+            )}
             <span>Hold Invoice</span>
           </button>
 

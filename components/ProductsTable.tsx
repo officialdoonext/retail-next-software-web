@@ -59,6 +59,7 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Modal States
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
@@ -271,14 +272,17 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
+    setIsSavingEdit(true);
     try {
       await apiFetch(`/products/${editingProduct.id}`, {
         method: "PUT",
         body: JSON.stringify(editingProduct)
       });
-    } catch {}
-    setProducts(products.map((p) => (p.id === editingProduct.id ? editingProduct : p)));
-    setEditingProduct(null);
+      setProducts(products.map((p) => (p.id === editingProduct.id ? editingProduct : p)));
+      setEditingProduct(null);
+    } catch {} finally {
+      setIsSavingEdit(false);
+    }
   };
 
   
@@ -634,7 +638,14 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
             </thead>
 
             <tbody className="divide-y divide-gray-100 text-xs">
-              {filteredProducts.length === 0 && (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={11} className="py-16 text-center text-gray-400">
+                    <Loader2 className="w-6 h-6 text-[#6320EE] animate-spin mx-auto mb-2" />
+                    <span className="text-xs font-medium text-gray-600 block">Loading products catalog...</span>
+                  </td>
+                </tr>
+              ) : filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-12 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-3">
@@ -666,7 +677,7 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
                     </div>
                   </td>
                 </tr>
-              )}
+              ) : null}
 
               {paginatedProducts.map((item) => {
                 const isSelected = selectedIds.includes(item.id);
@@ -1540,9 +1551,11 @@ export default function ProductsTable({ onOpenBulkUpload }: { onOpenBulkUpload?:
               </button>
               <button
                 type="submit"
-                className="h-8 px-3.5 bg-[#6320EE] hover:bg-[#5219cd] text-white text-xs font-medium rounded-[8px] shadow-2xs cursor-pointer"
+                disabled={isSavingEdit}
+                className="h-8 px-3.5 bg-[#6320EE] hover:bg-[#5219cd] text-white text-xs font-medium rounded-[8px] shadow-2xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
               >
-                Save Changes
+                {isSavingEdit ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                <span>Save Changes</span>
               </button>
             </div>
           </form>
