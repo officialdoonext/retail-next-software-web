@@ -102,11 +102,11 @@ export default function Navbar() {
           <div className="flex items-center gap-3 shrink-0">
             <Link href="/products" className="flex items-center shrink-0 select-none group" title="RetailNext">
               <Image
-                src="/doonext-fav.png"
+                src="/logo.png"
                 alt="RetailNext Logo"
-                width={36}
-                height={36}
-                className="h-9 w-9 object-contain transition-transform group-hover:scale-105"
+                width={130}
+                height={34}
+                className="h-8.5 w-auto object-contain transition-transform group-hover:scale-105"
                 priority
               />
             </Link>

@@ -110,6 +110,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const data = await response.json().catch(() => ({}));
 
+    if (response.status === 401) {
+      // Stored token is invalid or expired: clear stale auth session
+      setToken(null);
+      setUser(null);
+      setActiveBusiness(null);
+      try {
+        localStorage.removeItem("rn_token");
+        localStorage.removeItem("rn_user");
+        localStorage.removeItem("rn_active_business");
+      } catch {}
+      return { success: false, data: [] };
+    }
+
     if (!response.ok) {
       throw new Error(data.message || `API error (${response.status})`);
     }
