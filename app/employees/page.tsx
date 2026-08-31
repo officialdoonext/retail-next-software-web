@@ -297,18 +297,19 @@ export default function EmployeesPage() {
       // City Filter
       if (cityFilter !== "all" && emp.city.toLowerCase() !== cityFilter.toLowerCase()) return false;
 
-      // Search Query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matches =
-          emp.name.toLowerCase().includes(q) ||
-          emp.phone.includes(q) ||
-          emp.city.toLowerCase().includes(q) ||
-          emp.address.toLowerCase().includes(q) ||
-          emp.role.toLowerCase().includes(q) ||
-          (emp.email && emp.email.toLowerCase().includes(q));
-        if (!matches) return false;
-      }
+        // Search Query
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase().trim();
+          const matches =
+            emp.name.toLowerCase().includes(q) ||
+            emp.id.includes(q) ||
+            emp.phone.includes(q) ||
+            emp.city.toLowerCase().includes(q) ||
+            emp.address.toLowerCase().includes(q) ||
+            emp.role.toLowerCase().includes(q) ||
+            (emp.email && emp.email.toLowerCase().includes(q));
+          if (!matches) return false;
+        }
 
       return true;
     });
@@ -585,7 +586,10 @@ export default function EmployeesPage() {
                           {emp.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <span className="font-medium text-gray-900 block">{emp.name}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-gray-900 block">{emp.name}</span>
+                            <span className="text-[10px] text-gray-400 font-mono font-normal">#{emp.id}</span>
+                          </div>
                           <span className="inline-block text-[10px] text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded font-medium mt-0.5">
                             {emp.role || "Staff"}
                           </span>

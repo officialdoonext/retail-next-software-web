@@ -981,7 +981,7 @@ export default function EmployeeDetailsPage() {
               <p className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
                 <span className="font-medium text-purple-700">{employee.role || "Staff Member"}</span>
                 <span>•</span>
-                <span>ID: {employee.id.slice(-6)}</span>
+                <span className="font-mono font-semibold text-gray-700">ID: #{employee.id}</span>
                 <span>•</span>
                 <span>+91 {employee.phone}</span>
               </p>
