@@ -83,6 +83,9 @@ export default function Navbar() {
     if (href === "/products" && (pathname === "/" || pathname === "/products")) {
       return true;
     }
+    if (href === "/expenses" && (pathname === "/expenses" || pathname === "/investments")) {
+      return true;
+    }
     return pathname === href;
   };
 
@@ -106,7 +109,7 @@ export default function Navbar() {
                 alt="RetailNext Logo"
                 width={130}
                 height={34}
-                className="h-8.5 w-auto object-contain transition-transform group-hover:scale-105"
+                className="h-8.5 w-[38px] object-contain transition-transform group-hover:scale-105"
                 priority
               />
             </Link>
