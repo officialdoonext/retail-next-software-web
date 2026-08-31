@@ -355,15 +355,33 @@ export default function PurchasesPage() {
       if (poInitialStatus === "Received") {
         for (const it of newPO.items) {
           try {
-            await apiFetch(`/products/${it.productId}/stock`, {
-              method: "POST",
-              body: JSON.stringify({
-                quantity: it.quantity,
-                variationId: it.variationId,
-                action: "add",
-                reason: `PO Order ${newPO.poNumber}`
-              })
-            });
+            const prod = products.find((p) => p.id === it.productId);
+            if (prod) {
+              let updatePayload: any = {};
+              if (it.variationId && prod.variations) {
+                const updatedVars = prod.variations.map((v: any) =>
+                  v.id === it.variationId
+                    ? { ...v, stock: (Number(v.stock) || 0) + Number(it.quantity), status: "Active" }
+                    : v
+                );
+                const totalStock = updatedVars.reduce((sum: number, v: any) => sum + (Number(v.stock) || 0), 0);
+                updatePayload = {
+                  variations: updatedVars,
+                  stock: totalStock,
+                  status: totalStock > 0 ? "Active" : "Out of Stock"
+                };
+              } else {
+                const newStock = (Number(prod.stock) || 0) + Number(it.quantity);
+                updatePayload = {
+                  stock: newStock,
+                  status: newStock > 0 ? "Active" : "Out of Stock"
+                };
+              }
+              await apiFetch(`/products/${it.productId}`, {
+                method: "PUT",
+                body: JSON.stringify(updatePayload)
+              });
+            }
           } catch {}
         }
       }
@@ -428,15 +446,33 @@ export default function PurchasesPage() {
       for (const it of updatedItems) {
         if (it.received && it.receivedQty && it.receivedQty > 0) {
           try {
-            await apiFetch(`/products/${it.productId}/stock`, {
-              method: "POST",
-              body: JSON.stringify({
-                quantity: it.receivedQty,
-                variationId: it.variationId,
-                action: "add",
-                reason: `PO Received ${receivingPO.poNumber}`
-              })
-            });
+            const prod = products.find((p) => p.id === it.productId);
+            if (prod) {
+              let updatePayload: any = {};
+              if (it.variationId && prod.variations) {
+                const updatedVars = prod.variations.map((v: any) =>
+                  v.id === it.variationId
+                    ? { ...v, stock: (Number(v.stock) || 0) + Number(it.receivedQty), status: "Active" }
+                    : v
+                );
+                const totalStock = updatedVars.reduce((sum: number, v: any) => sum + (Number(v.stock) || 0), 0);
+                updatePayload = {
+                  variations: updatedVars,
+                  stock: totalStock,
+                  status: totalStock > 0 ? "Active" : "Out of Stock"
+                };
+              } else {
+                const newStock = (Number(prod.stock) || 0) + Number(it.receivedQty);
+                updatePayload = {
+                  stock: newStock,
+                  status: newStock > 0 ? "Active" : "Out of Stock"
+                };
+              }
+              await apiFetch(`/products/${it.productId}`, {
+                method: "PUT",
+                body: JSON.stringify(updatePayload)
+              });
+            }
           } catch (e) {
             console.warn("Stock sync error:", e);
           }

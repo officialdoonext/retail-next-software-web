@@ -77,58 +77,15 @@ export default function VendorsPage() {
 
   // Fetch Vendors
   const fetchVendors = async () => {
+    if (!activeBusiness) return;
     setIsLoading(true);
     try {
       const res = await apiFetch("/vendors");
-      if (res && res.data && res.data.length > 0) {
-        setVendors(res.data);
-      } else {
-        // Sample default vendors if none exist
-        const initialVendors: VendorRecord[] = [
-          {
-            id: "vend_1",
-            name: "Shree Ganesh Agro Supplies",
-            phone: "9848012345",
-            city: "Nellore",
-            address: "Shop #14, APMC Market Yard, Podalakur Road",
-            email: "ganeshagro@gmail.com",
-            gstin: "37AAACG1234F1Z8",
-            totalOrders: 18,
-            totalSpent: 345000,
-            status: "Active",
-            createdAt: new Date(Date.now() - 30 * 86400000).toISOString()
-          },
-          {
-            id: "vend_2",
-            name: "Amul & Mother Dairy Distributors",
-            phone: "9440198765",
-            city: "Vijayawada",
-            address: "Plot 88, Auto Nagar Industrial Area",
-            email: "dairy.supply@rediffmail.com",
-            gstin: "37AABCA5678D1Z2",
-            totalOrders: 42,
-            totalSpent: 890000,
-            status: "Active",
-            createdAt: new Date(Date.now() - 60 * 86400000).toISOString()
-          },
-          {
-            id: "vend_3",
-            name: "Balaji FMCG & Dry Fruits Wholesale",
-            phone: "9123456789",
-            city: "Hyderabad",
-            address: "Begum Bazar Main Road, Near Fish Market",
-            email: "balajifmcg@yahoo.com",
-            gstin: "36AACFB9988E1Z4",
-            totalOrders: 25,
-            totalSpent: 620000,
-            status: "Active",
-            createdAt: new Date(Date.now() - 90 * 86400000).toISOString()
-          }
-        ];
-        setVendors(initialVendors);
+      if (res && res.data) {
+        setVendors(Array.isArray(res.data) ? res.data : []);
       }
     } catch (err) {
-      console.warn("Using local vendor fallback:", err);
+      console.warn("Failed to fetch live vendors:", err);
     } finally {
       setIsLoading(false);
     }
@@ -202,56 +159,44 @@ export default function VendorsPage() {
     try {
       if (editingVendor) {
         // Update Vendor
-        try {
-          await apiFetch(`/vendors/${editingVendor.id}`, {
-            method: "PUT",
-            body: JSON.stringify({
-              ...vendorForm,
-              phone: cleanPhone
-            })
-          });
-        } catch {}
+        const res = await apiFetch(`/vendors/${editingVendor.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            ...vendorForm,
+            phone: cleanPhone
+          })
+        });
 
+        const updated = res?.data || { ...editingVendor, ...vendorForm, phone: cleanPhone };
         setVendors(
-          vendors.map((v) =>
-            v.id === editingVendor.id
-              ? { ...v, ...vendorForm, phone: cleanPhone }
-              : v
-          )
+          vendors.map((v) => (v.id === editingVendor.id ? updated : v))
         );
-        setSuccessMsg("Vendor details updated successfully!");
+        setSuccessMsg("Vendor details updated successfully in Firebase!");
       } else {
         // Create Vendor
-        const newRecord: VendorRecord = {
-          id: `vend_${Date.now()}`,
-          name: vendorForm.name.trim(),
-          phone: cleanPhone,
-          city: vendorForm.city.trim(),
-          address: vendorForm.address.trim(),
-          email: vendorForm.email.trim() || undefined,
-          gstin: vendorForm.gstin.trim() || undefined,
-          notes: vendorForm.notes.trim() || undefined,
-          totalOrders: 0,
-          totalSpent: 0,
-          status: vendorForm.status,
-          createdAt: new Date().toISOString()
-        };
+        const res = await apiFetch("/vendors", {
+          method: "POST",
+          body: JSON.stringify({
+            name: vendorForm.name.trim(),
+            phone: cleanPhone,
+            city: vendorForm.city.trim(),
+            address: vendorForm.address.trim(),
+            email: vendorForm.email.trim() || undefined,
+            gstin: vendorForm.gstin.trim() || undefined,
+            notes: vendorForm.notes.trim() || undefined,
+            totalOrders: 0,
+            totalSpent: 0,
+            status: vendorForm.status
+          })
+        });
 
-        try {
-          const res = await apiFetch("/vendors", {
-            method: "POST",
-            body: JSON.stringify(newRecord)
-          });
-          if (res && res.data) {
-            setVendors([res.data, ...vendors]);
-          } else {
-            setVendors([newRecord, ...vendors]);
-          }
-        } catch {
-          setVendors([newRecord, ...vendors]);
+        if (res && res.data) {
+          setVendors([res.data, ...vendors]);
+        } else {
+          fetchVendors();
         }
 
-        setSuccessMsg("New vendor added successfully!");
+        setSuccessMsg("New vendor saved to Firebase Firestore successfully!");
       }
 
       setIsModalOpen(false);

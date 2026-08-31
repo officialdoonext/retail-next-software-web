@@ -75,6 +75,7 @@ export default function InventoryPage() {
 
   // Fetch Products & Variations
   const loadInventory = async () => {
+    if (!activeBusiness) return;
     setIsLoading(true);
     try {
       const [prodRes, catRes] = await Promise.allSettled([
@@ -82,11 +83,11 @@ export default function InventoryPage() {
         apiFetch("/categories")
       ]);
 
-      if (prodRes.status === "fulfilled" && prodRes.value.data && prodRes.value.data.length > 0) {
-        setProducts(prodRes.value.data);
+      if (prodRes.status === "fulfilled" && prodRes.value?.data) {
+        setProducts(Array.isArray(prodRes.value.data) ? prodRes.value.data : []);
       }
-      if (catRes.status === "fulfilled" && catRes.value.data) {
-        setCategories(catRes.value.data);
+      if (catRes.status === "fulfilled" && catRes.value?.data) {
+        setCategories(Array.isArray(catRes.value.data) ? catRes.value.data : []);
       }
     } catch (err) {
       console.warn("Failed to load live inventory:", err);
@@ -210,15 +211,32 @@ export default function InventoryPage() {
     }
 
     try {
-      // 1. Update stock in database
-      await apiFetch(`/products/${adjustingItem.productId}/stock`, {
-        method: "PUT",
-        body: JSON.stringify({
+      const prod = products.find((p) => p.id === adjustingItem.productId);
+      let updatePayload: any = {};
+
+      if (prod && adjustingItem.variationId && prod.variations) {
+        const updatedVars = prod.variations.map((v: any) =>
+          v.id === adjustingItem.variationId
+            ? { ...v, stock: finalNewStock, status: finalNewStock > 0 ? "Active" : "Out of Stock" }
+            : v
+        );
+        const totalStock = updatedVars.reduce((acc: number, item: any) => acc + (Number(item.stock) || 0), 0);
+        updatePayload = {
+          variations: updatedVars,
+          stock: totalStock,
+          status: totalStock > 0 ? (prod.status === "Inactive" ? "Inactive" : "Active") : "Out of Stock"
+        };
+      } else {
+        updatePayload = {
           stock: finalNewStock,
-          variationId: adjustingItem.variationId,
-          reason: adjustReason,
-          action: adjustType
-        })
+          status: finalNewStock > 0 ? (prod?.status === "Inactive" ? "Inactive" : "Active") : "Out of Stock"
+        };
+      }
+
+      // 1. Update stock in database
+      await apiFetch(`/products/${adjustingItem.productId}`, {
+        method: "PUT",
+        body: JSON.stringify(updatePayload)
       });
 
       // 2. Update local state
@@ -231,12 +249,12 @@ export default function InventoryPage() {
                   ? { ...v, stock: finalNewStock, status: finalNewStock > 0 ? "Active" : "Out of Stock" }
                   : v
               );
-              return { ...p, variations: updatedVars };
+              return { ...p, variations: updatedVars, stock: updatedVars.reduce((a: number, b: any) => a + (Number(b.stock) || 0), 0) };
             } else {
               return {
                 ...p,
                 stock: finalNewStock,
-                status: finalNewStock > 0 ? "Active" : "Out of Stock"
+                status: finalNewStock > 0 ? (p.status === "Inactive" ? "Inactive" : "Active") : "Out of Stock"
               };
             }
           }
@@ -258,14 +276,31 @@ export default function InventoryPage() {
   const handleQuickDelta = async (item: FlatStockItem, delta: number) => {
     const nextStock = Math.max(0, item.stock + delta);
     try {
-      await apiFetch(`/products/${item.productId}/stock`, {
-        method: "PUT",
-        body: JSON.stringify({
+      const prod = products.find((p) => p.id === item.productId);
+      let updatePayload: any = {};
+
+      if (prod && item.variationId && prod.variations) {
+        const updatedVars = prod.variations.map((v: any) =>
+          v.id === item.variationId
+            ? { ...v, stock: nextStock, status: nextStock > 0 ? "Active" : "Out of Stock" }
+            : v
+        );
+        const totalStock = updatedVars.reduce((acc: number, v: any) => acc + (Number(v.stock) || 0), 0);
+        updatePayload = {
+          variations: updatedVars,
+          stock: totalStock,
+          status: totalStock > 0 ? (prod.status === "Inactive" ? "Inactive" : "Active") : "Out of Stock"
+        };
+      } else {
+        updatePayload = {
           stock: nextStock,
-          variationId: item.variationId,
-          action: delta > 0 ? "add" : "reduce",
-          reason: "Quick POS Count Adjustment"
-        })
+          status: nextStock > 0 ? (prod?.status === "Inactive" ? "Inactive" : "Active") : "Out of Stock"
+        };
+      }
+
+      await apiFetch(`/products/${item.productId}`, {
+        method: "PUT",
+        body: JSON.stringify(updatePayload)
       });
 
       setProducts(
@@ -273,17 +308,19 @@ export default function InventoryPage() {
           if (p.id === item.productId) {
             if (item.variationId && p.variations) {
               const updatedVars = p.variations.map((v: any) =>
-                v.id === item.variationId ? { ...v, stock: nextStock } : v
+                v.id === item.variationId ? { ...v, stock: nextStock, status: nextStock > 0 ? "Active" : "Out of Stock" } : v
               );
-              return { ...p, variations: updatedVars };
+              return { ...p, variations: updatedVars, stock: updatedVars.reduce((a: number, b: any) => a + (Number(b.stock) || 0), 0) };
             } else {
-              return { ...p, stock: nextStock };
+              return { ...p, stock: nextStock, status: nextStock > 0 ? (p.status === "Inactive" ? "Inactive" : "Active") : "Out of Stock" };
             }
           }
           return p;
         })
       );
-    } catch {}
+    } catch (err: any) {
+      console.warn("Failed to update quick stock:", err);
+    }
   };
 
   const handleExportExcel = () => {

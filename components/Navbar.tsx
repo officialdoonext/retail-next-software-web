@@ -102,7 +102,7 @@ export default function Navbar() {
           <div className="flex items-center gap-3 shrink-0">
             <Link href="/products" className="flex items-center shrink-0 select-none group" title="RetailNext">
               <Image
-                src="/logo.png"
+                src="/doonext-fav.png"
                 alt="RetailNext Logo"
                 width={130}
                 height={34}
