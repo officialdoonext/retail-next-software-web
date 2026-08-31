@@ -25,7 +25,9 @@ import {
   Usb,
   Bluetooth,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Warehouse,
+  Boxes
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { usePrinter } from "@/context/PrinterContext";
@@ -42,6 +44,8 @@ const NAV_ITEMS: NavItem[] = [
   { name: "Sales", href: "/sales", icon: ShoppingCart },
   { name: "Products", href: "/products", icon: Package },
   { name: "Stock", href: "/inventory", icon: Layers },
+  { name: "Store Racks", href: "/store-arrangement", icon: Boxes },
+  { name: "Godown", href: "/godown-arrangement", icon: Warehouse },
   { name: "Purchases", href: "/purchases", icon: ShoppingBag },
   { name: "Vendors", href: "/vendors", icon: Store },
   { name: "Employees", href: "/employees", icon: UserCheck },
